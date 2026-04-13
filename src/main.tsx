@@ -1,13 +1,19 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
+import { CatalogProvider } from './catalog/CatalogContext'
+import { SiteBrandingProvider } from './branding/SiteBrandingContext'
 import './index.css'
 import App from './App.tsx'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <BrowserRouter>
-      <App />
-    </BrowserRouter>
+    <SiteBrandingProvider>
+      <CatalogProvider>
+        <BrowserRouter>
+          <App />
+        </BrowserRouter>
+      </CatalogProvider>
+    </SiteBrandingProvider>
   </StrictMode>,
 )

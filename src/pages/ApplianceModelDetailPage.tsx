@@ -3,12 +3,8 @@ import { Navigate, useParams } from 'react-router-dom'
 import { ProductImageGallery } from '../components/appliance-models/detail/ProductImageGallery'
 import { SalesforcePricingPanel } from '../components/appliance-models/detail/SalesforcePricingPanel'
 import { AppBreadcrumbs } from '../components/navigation/AppBreadcrumbs'
-import {
-  getModelBySlug,
-  isDetailSlug,
-  modelDetailsBySlug,
-  productGalleryImages,
-} from '../data/appliance-models'
+import { modelDetailsBySlug, productGalleryImages } from '../data/appliance-models'
+import { useCatalog } from '../catalog/CatalogContext'
 import { useSalesforcePricing } from '../hooks/useSalesforcePricing'
 import styles from './ApplianceModelDetailPage.module.css'
 
@@ -31,10 +27,13 @@ export function ApplianceModelDetailPage() {
   const [customer, setCustomer] = useState('pied-piper')
   const [consolePorts, setConsolePorts] = useState('1')
 
-  const row = isDetailSlug(modelSlug) ? getModelBySlug(modelSlug) : undefined
-  const detail = isDetailSlug(modelSlug) ? modelDetailsBySlug[modelSlug] : undefined
+  const { catalog } = useCatalog()
+  const catalogProduct = catalog.products.find((p) => p.id === modelSlug)
 
-  const pricing = useSalesforcePricing(detail?.sfProductId ?? '')
+  // Supplemental hardcoded data for the two original products
+  const detail = modelDetailsBySlug[modelSlug]
+
+  const pricing = useSalesforcePricing(catalogProduct?.sfProductId ?? '')
 
   const totalPrice = useMemo(() => {
     const unitPrice =
@@ -42,9 +41,14 @@ export function ApplianceModelDetailPage() {
     return priceFormatter.format(unitPrice * quantity)
   }, [pricing, detail, quantity])
 
-  if (!detail || !row) {
+  if (!catalogProduct) {
     return <Navigate to="/" replace />
   }
+
+  const galleryImages: readonly { src: string; alt: string }[] =
+    catalogProduct.imageUrl.trim()
+      ? [{ src: catalogProduct.imageUrl, alt: catalogProduct.name }]
+      : productGalleryImages
 
   const bumpQty = (delta: number) => {
     setQuantity((q) => Math.min(MAX_QTY, Math.max(1, q + delta)))
@@ -52,33 +56,43 @@ export function ApplianceModelDetailPage() {
 
   return (
     <div className={styles.wrap}>
-      <AppBreadcrumbs modelName={detail.name} />
+      <AppBreadcrumbs modelName={catalogProduct.name} />
 
       <div className={styles.grid}>
         <div className={styles.left}>
           <article>
-            <h1 className={styles.title}>{detail.name}</h1>
-            <p className={styles.threat}>
-              Threat protection (reference): <strong>{detail.threatProtection}</strong>
-            </p>
-            <p className={styles.summary}>{detail.summary}</p>
+            <h1 className={styles.title}>{catalogProduct.name}</h1>
+            {catalogProduct.family && (
+              <p className={styles.threat}>{catalogProduct.family}</p>
+            )}
+            {catalogProduct.description && (
+              <p className={styles.summary}>{catalogProduct.description}</p>
+            )}
 
-            <h2 className={styles.h2}>Highlights</h2>
-            <ul className={styles.list}>
-              {detail.highlights.map((item) => (
-                <li key={item}>{item}</li>
-              ))}
-            </ul>
+            {detail?.highlights && detail.highlights.length > 0 && (
+              <>
+                <h2 className={styles.h2}>Highlights</h2>
+                <ul className={styles.list}>
+                  {detail.highlights.map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+              </>
+            )}
 
-            <h2 className={styles.h2}>Specifications</h2>
-            <dl className={styles.specs}>
-              {detail.specs.map((s) => (
-                <div key={s.label} className={styles.specRow}>
-                  <dt>{s.label}</dt>
-                  <dd>{s.value}</dd>
-                </div>
-              ))}
-            </dl>
+            {detail?.specs && detail.specs.length > 0 && (
+              <>
+                <h2 className={styles.h2}>Specifications</h2>
+                <dl className={styles.specs}>
+                  {detail.specs.map((s) => (
+                    <div key={s.label} className={styles.specRow}>
+                      <dt>{s.label}</dt>
+                      <dd>{s.value}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </>
+            )}
 
             <section className={styles.configPanel} aria-labelledby="config-heading">
               <h2 id="config-heading" className={styles.configTitle}>
@@ -116,20 +130,17 @@ export function ApplianceModelDetailPage() {
                 </select>
               </div>
             </section>
-
-            <p className={styles.note}>
-              Product datasheet and overview video resources are represented in the appliance models
-              table with icons; this demo keeps all navigation inside the app.
-            </p>
           </article>
         </div>
 
         <aside className={styles.right}>
-          <ProductImageGallery
-            images={productGalleryImages}
-            activeIndex={activeGalleryIndex}
-            onSelectIndex={setActiveGalleryIndex}
-          />
+          {galleryImages.length > 0 && (
+            <ProductImageGallery
+              images={galleryImages}
+              activeIndex={activeGalleryIndex}
+              onSelectIndex={setActiveGalleryIndex}
+            />
+          )}
           <div className={styles.purchaseRow}>
             <div className={styles.qtyBlock}>
               <span className={styles.qtyLabel}>Quantity</span>

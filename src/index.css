@@ -1,7 +1,7 @@
 :root {
-  --fc-accent: #c1272d;
-  --fc-accent-hover: #a61f25;
-  --fc-accent-muted: rgba(193, 39, 45, 0.12);
+  --fc-accent: #00a1e0;
+  --fc-accent-hover: #0089c1;
+  --fc-accent-muted: rgba(0, 161, 224, 0.12);
   --fc-text: #333333;
   --fc-text-muted: #5c5c5c;
   --fc-text-subtle: #757575;
