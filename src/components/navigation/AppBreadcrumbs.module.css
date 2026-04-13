@@ -1,0 +1,41 @@
+.nav {
+  font-size: 13px;
+  color: var(--fc-text-muted);
+  margin-bottom: 20px;
+}
+
+.list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sep {
+  color: var(--fc-text-subtle);
+  user-select: none;
+}
+
+.link {
+  color: var(--fc-text-muted);
+  text-decoration: none;
+}
+
+.link:hover {
+  color: var(--fc-accent);
+  text-decoration: underline;
+}
+
+.current {
+  color: var(--fc-text);
+  font-weight: 500;
+}

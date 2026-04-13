@@ -1,0 +1,250 @@
+.wrap {
+  padding: 20px 24px 40px;
+  max-width: 1180px;
+  margin: 0 auto;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr minmax(280px, 400px);
+  gap: 32px;
+  align-items: start;
+}
+
+.left {
+  min-width: 0;
+}
+
+.right {
+  position: sticky;
+  top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.title {
+  font-size: 26px;
+  font-weight: 600;
+  margin: 0 0 12px;
+  letter-spacing: -0.02em;
+}
+
+.threat {
+  margin: 0 0 16px;
+  font-size: 15px;
+  color: var(--fc-text-muted);
+}
+
+.threat strong {
+  color: var(--fc-text);
+  font-weight: 600;
+}
+
+.summary {
+  margin: 0 0 24px;
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--fc-text);
+}
+
+.h2 {
+  font-size: 14px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--fc-text-muted);
+  margin: 24px 0 10px;
+}
+
+.list {
+  margin: 0;
+  padding-left: 20px;
+  color: var(--fc-text);
+  line-height: 1.55;
+}
+
+.list li {
+  margin-bottom: 8px;
+}
+
+.specs {
+  margin: 0;
+}
+
+.specRow {
+  display: grid;
+  grid-template-columns: minmax(140px, 220px) 1fr;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--fc-border-light);
+  font-size: 14px;
+}
+
+.specRow dt {
+  margin: 0;
+  color: var(--fc-text-muted);
+  font-weight: 500;
+}
+
+.specRow dd {
+  margin: 0;
+  color: var(--fc-text);
+}
+
+.configPanel {
+  margin-top: 28px;
+  padding: 16px 18px;
+  border: 1px solid var(--fc-border-light);
+  border-radius: var(--fc-radius-md);
+  background: var(--fc-surface);
+  box-shadow: var(--fc-shadow-card);
+}
+
+.configTitle {
+  margin: 0 0 14px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--fc-text);
+}
+
+.field {
+  margin-bottom: 14px;
+}
+
+.field:last-child {
+  margin-bottom: 0;
+}
+
+.label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--fc-text-muted);
+  margin-bottom: 6px;
+}
+
+.select {
+  width: 100%;
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--fc-border);
+  border-radius: var(--fc-radius-sm);
+  background: var(--fc-surface);
+  font: inherit;
+  font-size: 14px;
+  color: var(--fc-text);
+}
+
+.select:focus {
+  outline: none;
+  border-color: var(--fc-accent);
+  box-shadow: 0 0 0 1px var(--fc-accent-muted);
+}
+
+.note {
+  margin: 28px 0 0;
+  font-size: 13px;
+  color: var(--fc-text-subtle);
+  line-height: 1.45;
+}
+
+.purchaseRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px;
+  border: 1px solid var(--fc-border-light);
+  border-radius: var(--fc-radius-md);
+  background: var(--fc-surface);
+  box-shadow: var(--fc-shadow-card);
+}
+
+.qtyBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.qtyLabel {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--fc-text-subtle);
+}
+
+.qtyControls {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--fc-border);
+  border-radius: var(--fc-radius-sm);
+  overflow: hidden;
+  background: var(--fc-surface);
+}
+
+.qtyBtn {
+  width: 40px;
+  height: 40px;
+  border: none;
+  background: #fafafa;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--fc-text);
+}
+
+.qtyBtn:hover:not(:disabled) {
+  background: var(--fc-accent-muted);
+  color: var(--fc-accent);
+}
+
+.qtyBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.qtyValue {
+  min-width: 44px;
+  text-align: center;
+  font-size: 16px;
+  font-weight: 600;
+  padding: 0 8px;
+}
+
+.priceBlock {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  min-width: 140px;
+}
+
+.priceLabel {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--fc-text-subtle);
+}
+
+.priceValue {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--fc-text);
+}
+
+@media (max-width: 960px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .right {
+    position: static;
+    order: -1;
+  }
+}
