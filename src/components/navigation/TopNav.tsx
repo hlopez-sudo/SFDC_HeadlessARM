@@ -1,5 +1,6 @@
-import { useState } from 'react'
-import { ChevronDown } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { useSiteBranding } from '../../branding/SiteBrandingContext'
+import type { SiteBranding } from '../../branding/types'
 import styles from './TopNav.module.css'
 
 function LogoMark() {
@@ -28,39 +29,44 @@ function LogoMark() {
   )
 }
 
+function resolveLogoSrc(branding: SiteBranding): 'default' | string {
+  if (branding.logoMode === 'upload' && branding.logoDataUrl) {
+    return branding.logoDataUrl
+  }
+  if (branding.logoMode === 'url') {
+    const u = branding.logoUrl.trim()
+    if (u.startsWith('https://')) return u
+  }
+  return 'default'
+}
+
 export function TopNav() {
-  const [servicesOpen, setServicesOpen] = useState(false)
-  const [supportOpen, setSupportOpen] = useState(false)
+  const { branding } = useSiteBranding()
+  const [imgFailed, setImgFailed] = useState(false)
+
+  const logoSrc = useMemo(() => resolveLogoSrc(branding), [branding])
+
+  useEffect(() => {
+    setImgFailed(false)
+  }, [logoSrc])
+
+  const showCustomLogo = logoSrc !== 'default' && !imgFailed
 
   return (
     <header className={styles.bar}>
       <a className={styles.brand} href="/">
-        <LogoMark />
-        <span>FortiCloud</span>
+        {showCustomLogo ? (
+          <img
+            className={styles.brandImg}
+            src={logoSrc}
+            alt=""
+            onError={() => setImgFailed(true)}
+          />
+        ) : (
+          <LogoMark />
+        )}
+        <span>{branding.siteName.trim() || 'My Commerce'}</span>
       </a>
-      <nav className={styles.center} aria-label="Primary">
-        <button
-          type="button"
-          className={styles.navButton}
-          aria-expanded={servicesOpen}
-          aria-haspopup="menu"
-          onClick={() => setServicesOpen((v) => !v)}
-        >
-          Services
-          <ChevronDown size={16} strokeWidth={2} aria-hidden />
-        </button>
-        <button
-          type="button"
-          className={styles.navButton}
-          aria-expanded={supportOpen}
-          aria-haspopup="menu"
-          onClick={() => setSupportOpen((v) => !v)}
-        >
-          Support
-          <ChevronDown size={16} strokeWidth={2} aria-hidden />
-        </button>
-      </nav>
-      <div className={styles.spacer} aria-hidden />
     </header>
   )
 }
