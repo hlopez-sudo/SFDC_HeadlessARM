@@ -29,59 +29,302 @@
   padding: 8px 0;
 }
 
-.grid {
-  margin: 0;
-  display: flex;
-  flex-direction: column;
+.fallbackNotice {
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--fc-text);
+  background: rgba(180, 130, 40, 0.08);
+  border: 1px solid rgba(180, 130, 40, 0.35);
+  border-radius: var(--fc-radius-sm);
 }
 
-.row {
-  display: grid;
-  grid-template-columns: minmax(140px, 180px) 1fr;
-  gap: 10px;
-  padding: 9px 0;
+.sourceNotice {
+  margin: 0 0 14px;
+  padding: 8px 12px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--fc-text);
+  background: rgba(5, 150, 105, 0.06);
+  border: 1px solid rgba(5, 150, 105, 0.3);
+  border-radius: var(--fc-radius-sm);
+}
+
+.inlineCode {
+  font-family: ui-monospace, 'SF Mono', 'Cascadia Mono', monospace;
+  font-size: 11px;
+}
+
+.waterfallParseHint {
+  margin: 0 0 14px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--fc-text-muted);
+}
+
+/* ── Collapsible headless waterfall ── */
+.waterfallDetails {
+  margin-bottom: 14px;
+  border: 1px solid var(--fc-border-light);
+  border-radius: var(--fc-radius-sm);
+  background: var(--fc-surface);
+  overflow: hidden;
+}
+
+.waterfallSummary {
+  list-style: none;
+  padding: 10px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--fc-text-muted);
+  cursor: pointer;
+  user-select: none;
+}
+
+.waterfallSummary::-webkit-details-marker {
+  display: none;
+}
+
+.waterfallSummary::before {
+  content: '';
+  display: inline-block;
+  width: 0;
+  height: 0;
+  margin-right: 8px;
+  border-left: 5px solid var(--fc-text-muted);
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  transform: rotate(0deg);
+  transition: transform 0.15s ease;
+  vertical-align: middle;
+}
+
+.waterfallDetails[open] .waterfallSummary::before {
+  transform: rotate(90deg);
+}
+
+.waterfallSummary:hover {
+  color: var(--fc-accent);
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.headlessTableWrap {
+  max-width: 100%;
+  overflow-x: auto;
+  padding: 0 8px 10px;
+  border-top: 1px solid var(--fc-border-light);
+  -webkit-overflow-scrolling: touch;
+  box-sizing: border-box;
+}
+
+.headlessTableWrap .rawPre {
+  border-top: none;
+  margin-top: 0;
+}
+
+.headlessWaterfallTable {
+  table-layout: fixed;
+  min-width: 760px;
+  font-size: 11px;
+}
+
+.headlessWaterfallTable .thSeq {
+  width: 40px;
+}
+
+.headlessWaterfallTable .thHeadlessStep {
+  width: 20%;
+  min-width: 120px;
+}
+
+.headlessWaterfallTable .thHeadlessType {
+  width: 11%;
+  min-width: 88px;
+}
+
+.headlessWaterfallTable .thHeadlessMoney {
+  width: 100px;
+  min-width: 96px;
+  max-width: 110px;
+}
+
+.headlessWaterfallTable .thHeadlessTask {
+  width: auto;
+  min-width: 7.5rem;
+}
+
+.tdMoney {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.thHeadlessStep,
+.thHeadlessType,
+.thHeadlessTask,
+.thHeadlessMoney {
+  padding: 6px 8px;
+  font-weight: 600;
+  color: var(--fc-text-muted);
   border-bottom: 1px solid var(--fc-border-light);
-  font-size: 13px;
+  vertical-align: bottom;
 }
 
-.row:last-child {
+.thHeadlessStep,
+.thHeadlessType,
+.thHeadlessTask {
+  text-align: left;
+}
+
+.thHeadlessMoney {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.tdBreak {
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  hyphens: auto;
+}
+
+.tdMonoBreak {
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  font-family: ui-monospace, 'SF Mono', 'Cascadia Mono', monospace;
+  font-size: 10px;
+  line-height: 1.35;
+  color: var(--fc-text-muted);
+  min-width: 7rem;
+}
+
+/* ── Steps table ── */
+.stepsWrapper {
+  margin-bottom: 14px;
+}
+
+.stepsHeading {
+  margin: 0 0 8px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--fc-text-muted);
+}
+
+.stepsTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.stepsTable thead {
+  background: rgba(0, 0, 0, 0.03);
+}
+
+.thSeq,
+.th {
+  padding: 6px 8px;
+  text-align: left;
+  font-weight: 600;
+  color: var(--fc-text-muted);
+  border-bottom: 1px solid var(--fc-border-light);
+  white-space: nowrap;
+}
+
+.thSeq {
+  width: 28px;
+  text-align: center;
+}
+
+.thNum {
+  text-align: right;
+}
+
+.stepRow {
+  border-bottom: 1px solid var(--fc-border-light);
+}
+
+.stepRow:last-child {
   border-bottom: none;
 }
 
-.dt {
-  margin: 0;
-  color: var(--fc-text-muted);
-  font-weight: 500;
+.stepRow:nth-child(even) {
+  background: rgba(0, 0, 0, 0.015);
 }
 
-.dd {
-  margin: 0;
+.tdSeq,
+.td {
+  padding: 7px 8px;
+  vertical-align: middle;
   color: var(--fc-text);
-  word-break: break-all;
+}
+
+.tdSeq {
+  text-align: center;
+  color: var(--fc-text-muted);
+  font-size: 11px;
+}
+
+.tdNum {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.typeBadge {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.06);
+  font-size: 11px;
+  color: var(--fc-text-muted);
+  white-space: nowrap;
+}
+
+.adjNegative {
+  color: #15803d;
+  font-weight: 600;
+}
+
+.adjPositive {
+  color: #b91c1c;
+  font-weight: 600;
+}
+
+.adjNeutral {
+  color: var(--fc-text-muted);
+}
+
+/* ── Execution ID meta ── */
+.metaRow {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 10px;
+  font-size: 11px;
+}
+
+.metaLabel {
+  color: var(--fc-text-muted);
+  white-space: nowrap;
+  font-weight: 500;
 }
 
 .code {
   font-family: ui-monospace, 'SF Mono', 'Cascadia Mono', monospace;
-  font-size: 12px;
+  font-size: 11px;
   background: rgba(0, 0, 0, 0.04);
   padding: 1px 5px;
   border-radius: 4px;
   word-break: break-all;
+  color: var(--fc-text);
 }
 
-.priceHighlight {
-  font-weight: 600;
-  color: var(--fc-accent);
-  font-size: 14px;
-}
-
-.subtle {
-  font-size: 11px;
-  color: var(--fc-text-subtle);
-}
-
+/* ── Raw response ── */
 .rawDetails {
-  margin-top: 14px;
+  margin-top: 4px;
 }
 
 .rawSummary {

@@ -16,7 +16,7 @@ function App() {
         <Route path="/admin" element={<AdminGeneralPage />} />
         <Route path="/admin/salesforce" element={<AdminSalesforcePage />} />
         <Route path="/admin/product-catalog" element={<AdminProductCatalogPage />} />
-        <Route path="/appliance-models/:modelSlug" element={<ApplianceModelDetailPage />} />
+        <Route path="/products/:modelSlug" element={<ApplianceModelDetailPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </AppShell>

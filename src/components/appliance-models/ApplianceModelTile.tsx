@@ -22,7 +22,7 @@ export function ApplianceModelTile({ model }: ApplianceModelTileProps) {
   const { value: metricNum, unit: metricUnit } = parseThreatProtection(
     model.threatProtection,
   )
-  const detailPath = `/appliance-models/${model.slug}`
+  const detailPath = `/products/${model.slug}`
 
   const specLines = [
     `Threat protection: ${model.threatProtection}`,

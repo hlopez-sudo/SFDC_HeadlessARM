@@ -5,7 +5,7 @@ import styles from './Sidebar.module.css'
 
 export function Sidebar() {
   const { pathname } = useLocation()
-  const productsPath = pathname === '/' || pathname.startsWith('/appliance-models')
+  const productsPath = pathname === '/' || pathname.startsWith('/products')
   const onAdminPath = pathname === '/admin' || pathname.startsWith('/admin/')
   const [administrationOpen, setAdministrationOpen] = useState(onAdminPath)
 

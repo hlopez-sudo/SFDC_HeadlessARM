@@ -1,4 +1,4 @@
-import { useId, useMemo, useState } from 'react'
+import { useEffect, useId, useMemo, useState } from 'react'
 import { Navigate, useParams } from 'react-router-dom'
 import { ProductImageGallery } from '../components/appliance-models/detail/ProductImageGallery'
 import { SalesforcePricingPanel } from '../components/appliance-models/detail/SalesforcePricingPanel'
@@ -6,6 +6,9 @@ import { AppBreadcrumbs } from '../components/navigation/AppBreadcrumbs'
 import { modelDetailsBySlug, productGalleryImages } from '../data/appliance-models'
 import { useCatalog } from '../catalog/CatalogContext'
 import { useSalesforcePricing } from '../hooks/useSalesforcePricing'
+import { useProductSellingModels } from '../hooks/useProductSellingModels'
+import { useHeadlessPricingConfig } from '../salesforce/HeadlessPricingConfigContext'
+import { buildHeadlessPricingData } from '../salesforce/buildHeadlessPricingData'
 import styles from './ApplianceModelDetailPage.module.css'
 
 const MAX_QTY = 99
@@ -15,17 +18,24 @@ const priceFormatter = new Intl.NumberFormat('en-US', {
   currency: 'USD',
 })
 
-const consolePortOptions = Array.from({ length: 8 }, (_, i) => String(i + 1))
+function formatMoney(amount: number, currencyIsoCode: string): string {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: currencyIsoCode || 'USD',
+  }).format(amount)
+}
 
 export function ApplianceModelDetailPage() {
   const { modelSlug = '' } = useParams<{ modelSlug: string }>()
   const customerId = useId()
-  const portsId = useId()
+  const sellingModelId = useId()
 
   const [activeGalleryIndex, setActiveGalleryIndex] = useState(0)
   const [quantity, setQuantity] = useState(1)
+  const [qtyInput, setQtyInput] = useState('1')
+  const [committedQuantity, setCommittedQuantity] = useState(1)
   const [customer, setCustomer] = useState('pied-piper')
-  const [consolePorts, setConsolePorts] = useState('1')
+  const [sellingModel, setSellingModel] = useState('')
 
   const { catalog } = useCatalog()
   const catalogProduct = catalog.products.find((p) => p.id === modelSlug)
@@ -33,12 +43,74 @@ export function ApplianceModelDetailPage() {
   // Supplemental hardcoded data for the two original products
   const detail = modelDetailsBySlug[modelSlug]
 
-  const pricing = useSalesforcePricing(catalogProduct?.sfProductId ?? '')
+  const sellingModels = useProductSellingModels()
+  const selectedSellingModelId = sellingModels.find((m) => m.name === sellingModel)?.id
 
-  const totalPrice = useMemo(() => {
-    const unitPrice =
-      pricing.status === 'ok' ? pricing.record.UnitPrice : detail?.unitPriceUsd ?? 0
-    return priceFormatter.format(unitPrice * quantity)
+  useEffect(() => {
+    if (sellingModel === '' && sellingModels.length > 0) {
+      setSellingModel(sellingModels[0].name)
+    }
+  }, [sellingModels])
+
+  const { config: headlessConfig, isComplete: headlessComplete } = useHeadlessPricingConfig()
+
+  const pricing = useSalesforcePricing(
+    catalogProduct?.sfProductId ?? '',
+    committedQuantity,
+    selectedSellingModelId,
+    sellingModel,
+  )
+
+  const requestPayload = useMemo(() => {
+    if (!headlessComplete || !catalogProduct?.sfProductId) return undefined
+    const pricingDataObj = buildHeadlessPricingData({
+      product2Id: catalogProduct.sfProductId,
+      quantity: committedQuantity,
+      productSellingModelId: selectedSellingModelId,
+      pricebookId: headlessConfig.pricebookId || undefined,
+      startDate: headlessConfig.effectiveDate.trim() || undefined,
+    })
+
+    // Field order matches the canonical Salesforce example
+    const input: Record<string, unknown> = {
+      contextMappingId: headlessConfig.contextMappingId,
+      contextDefinitionId: headlessConfig.contextDefinitionId,
+      pricingProcedureId: headlessConfig.pricingProcedureId,
+    }
+    if (headlessConfig.discoveryProcedure.trim())
+      input.discoveryProcedure = headlessConfig.discoveryProcedure.trim()
+    input.displayContext = headlessConfig.displayContext
+    if (headlessConfig.effectiveDate.trim())
+      input.effectiveDate = headlessConfig.effectiveDate.trim()
+    input.isHighVolumeLineItems = headlessConfig.isHighVolumeLineItems
+    input.skipDiscovery = headlessConfig.skipDiscovery
+    input.taggedData = headlessConfig.taggedData
+    input.pricingData = JSON.stringify(pricingDataObj)
+    input.isSkipWaterfall = headlessConfig.isSkipWaterfall
+    input.persistContext = headlessConfig.persistContext
+    input.useSessionScopedContext = headlessConfig.useSessionScopedContext
+
+    return { inputs: [input] }
+  }, [
+    headlessComplete,
+    headlessConfig,
+    catalogProduct,
+    committedQuantity,
+    selectedSellingModelId,
+  ])
+
+  const unitPriceDisplay = useMemo(() => {
+    if (pricing.status === 'ok') {
+      return formatMoney(pricing.record.netUnitPrice, pricing.record.currencyIsoCode)
+    }
+    return priceFormatter.format(detail?.unitPriceUsd ?? 0)
+  }, [pricing, detail])
+
+  const lineTotalDisplay = useMemo(() => {
+    if (pricing.status === 'ok') {
+      return formatMoney(pricing.record.subtotal, pricing.record.currencyIsoCode)
+    }
+    return priceFormatter.format((detail?.unitPriceUsd ?? 0) * quantity)
   }, [pricing, detail, quantity])
 
   if (!catalogProduct) {
@@ -51,7 +123,10 @@ export function ApplianceModelDetailPage() {
       : productGalleryImages
 
   const bumpQty = (delta: number) => {
-    setQuantity((q) => Math.min(MAX_QTY, Math.max(1, q + delta)))
+    const next = Math.min(MAX_QTY, Math.max(1, quantity + delta))
+    setQuantity(next)
+    setQtyInput(String(next))
+    setCommittedQuantity(next)
   }
 
   return (
@@ -113,18 +188,21 @@ export function ApplianceModelDetailPage() {
                 </select>
               </div>
               <div className={styles.field}>
-                <label className={styles.label} htmlFor={portsId}>
-                  Console ports
+                <label className={styles.label} htmlFor={sellingModelId}>
+                  Selling Model
                 </label>
                 <select
-                  id={portsId}
+                  id={sellingModelId}
                   className={styles.select}
-                  value={consolePorts}
-                  onChange={(e) => setConsolePorts(e.target.value)}
+                  value={sellingModel}
+                  onChange={(e) => setSellingModel(e.target.value)}
                 >
-                  {consolePortOptions.map((n) => (
-                    <option key={n} value={n}>
-                      {n}
+                  {sellingModels.length === 0 && (
+                    <option value="">No selling models configured</option>
+                  )}
+                  {sellingModels.map((m) => (
+                    <option key={m.id} value={m.name}>
+                      {m.name}
                     </option>
                   ))}
                 </select>
@@ -154,9 +232,25 @@ export function ApplianceModelDetailPage() {
                 >
                   −
                 </button>
-                <span className={styles.qtyValue} aria-live="polite">
-                  {quantity}
-                </span>
+                <input
+                  type="number"
+                  className={styles.qtyValue}
+                  value={qtyInput}
+                  min={1}
+                  max={MAX_QTY}
+                  aria-label="Quantity"
+                  onChange={(e) => {
+                    setQtyInput(e.target.value)
+                    const val = parseInt(e.target.value, 10)
+                    if (!isNaN(val) && val >= 1) setQuantity(Math.min(MAX_QTY, val))
+                  }}
+                  onBlur={() => {
+                    const clamped = Math.min(MAX_QTY, Math.max(1, quantity))
+                    setQuantity(clamped)
+                    setQtyInput(String(clamped))
+                    setCommittedQuantity(clamped)
+                  }}
+                />
                 <button
                   type="button"
                   className={styles.qtyBtn}
@@ -169,16 +263,26 @@ export function ApplianceModelDetailPage() {
               </div>
             </div>
             <div className={styles.priceBlock}>
-              <span className={styles.priceLabel}>
-                Price{pricing.status === 'loading' ? ' …' : ''}
-              </span>
-              <p className={styles.priceValue} aria-live="polite">
-                {pricing.status === 'loading' ? '—' : totalPrice}
-              </p>
+              <div className={styles.priceRow}>
+                <span className={styles.priceLabel}>
+                  Unit Price{pricing.status === 'loading' ? ' …' : ''}
+                </span>
+                <p className={styles.unitPriceValue} aria-live="polite">
+                  {pricing.status === 'loading' ? '—' : unitPriceDisplay}
+                </p>
+              </div>
+              <div className={styles.priceRow}>
+                <span className={styles.priceLabel}>
+                  Price{pricing.status === 'loading' ? ' …' : ''}
+                </span>
+                <p className={styles.priceValue} aria-live="polite">
+                  {pricing.status === 'loading' ? '—' : lineTotalDisplay}
+                </p>
+              </div>
             </div>
           </div>
 
-          <SalesforcePricingPanel pricing={pricing} />
+          <SalesforcePricingPanel pricing={pricing} requestPayload={requestPayload} />
         </aside>
       </div>
     </div>

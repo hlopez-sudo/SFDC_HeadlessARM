@@ -1,14 +1,22 @@
 import { useCallback, useEffect, useMemo, useState, type ChangeEvent } from 'react'
-import { useCatalog, DEFAULT_CATALOG } from '../catalog/CatalogContext'
-import type { CatalogProduct, ProductCatalog } from '../catalog/types'
+import { useCatalog } from '../catalog/CatalogContext'
+import type { CatalogProduct, ProductCatalog, SellingModelEntry } from '../catalog/types'
+import { useSalesforceConfig } from '../salesforce/SalesforceConfigContext'
+import { SalesforceLookupInput } from '../components/salesforce/SalesforceLookupInput'
 import styles from './AdminProductCatalogPage.module.css'
 
 function newRow(): CatalogProduct {
-  return { id: crypto.randomUUID(), name: '', family: '', description: '', sfProductId: '', imageUrl: '' }
+  return { id: crypto.randomUUID(), name: '', family: '', description: '', sfProductId: '', imageUrl: 'https://www.salesforce.com/news/wp-content/uploads/sites/3/2021/05/Salesforce-logo.jpg?w=2048&h=1152' }
+}
+
+function newSellingModelRow(): SellingModelEntry {
+  return { id: crypto.randomUUID(), displayName: '', sfId: '' }
 }
 
 export function AdminProductCatalogPage() {
   const { catalog, setCatalog } = useCatalog()
+  const { orgInfo } = useSalesforceConfig()
+  const apiVersion = orgInfo.apiVersion || '62.0'
   const [draft, setDraft] = useState<ProductCatalog>(() => structuredClone(catalog))
 
   useEffect(() => {
@@ -24,11 +32,7 @@ export function AdminProductCatalogPage() {
     setCatalog(structuredClone(draft))
   }, [draft, setCatalog])
 
-  const onRevert = useCallback(() => {
-    setCatalog(structuredClone(DEFAULT_CATALOG))
-  }, [setCatalog])
-
-  const setHeader = useCallback((e: ChangeEvent<HTMLInputElement>) => {
+const setHeader = useCallback((e: ChangeEvent<HTMLInputElement>) => {
     setDraft((prev) => ({ ...prev, pageHeader: e.target.value }))
   }, [])
 
@@ -48,6 +52,37 @@ export function AdminProductCatalogPage() {
     [],
   )
 
+  const selectSellingModelOption = useCallback(
+    (idx: number, rec: Record<string, unknown>) => {
+      setDraft((prev) => {
+        const sellingModels = prev.sellingModels.map((m, i) =>
+          i === idx ? { ...m, sfId: (rec['Id'] as string) ?? m.sfId } : m,
+        )
+        return { ...prev, sellingModels }
+      })
+    },
+    [],
+  )
+
+  const selectProduct2 = useCallback(
+    (idx: number, rec: Record<string, unknown>) => {
+      setDraft((prev) => {
+        const products = prev.products.map((p, i) =>
+          i === idx
+            ? {
+                ...p,
+                name: (rec['Name'] as string) ?? p.name,
+                family: (rec['Family'] as string) ?? p.family,
+                sfProductId: (rec['Id'] as string) ?? p.sfProductId,
+              }
+            : p,
+        )
+        return { ...prev, products }
+      })
+    },
+    [],
+  )
+
   const deleteRow = useCallback((idx: number) => {
     setDraft((prev) => ({
       ...prev,
@@ -57,6 +92,29 @@ export function AdminProductCatalogPage() {
 
   const addRow = useCallback(() => {
     setDraft((prev) => ({ ...prev, products: [...prev.products, newRow()] }))
+  }, [])
+
+  const updateSellingModel = useCallback(
+    (idx: number, field: keyof SellingModelEntry, value: string) => {
+      setDraft((prev) => {
+        const sellingModels = prev.sellingModels.map((m, i) =>
+          i === idx ? { ...m, [field]: value } : m,
+        )
+        return { ...prev, sellingModels }
+      })
+    },
+    [],
+  )
+
+  const deleteSellingModel = useCallback((idx: number) => {
+    setDraft((prev) => ({
+      ...prev,
+      sellingModels: prev.sellingModels.filter((_, i) => i !== idx),
+    }))
+  }, [])
+
+  const addSellingModel = useCallback(() => {
+    setDraft((prev) => ({ ...prev, sellingModels: [...prev.sellingModels, newSellingModelRow()] }))
   }, [])
 
   return (
@@ -75,9 +133,6 @@ export function AdminProductCatalogPage() {
           onClick={onSave}
         >
           Save
-        </button>
-        <button type="button" className={styles.btn} onClick={onRevert}>
-          Revert to Defaults
         </button>
       </div>
 
@@ -107,6 +162,65 @@ export function AdminProductCatalogPage() {
       </fieldset>
 
       <fieldset className={styles.section}>
+        <legend className={styles.sectionTitle}>Product Selling Models</legend>
+        <div className={styles.tableWrap}>
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th className={styles.colDisplayName}>Display Name</th>
+                <th className={styles.colSfModelId}>ID</th>
+                <th className={styles.colDel}></th>
+              </tr>
+            </thead>
+            <tbody>
+              {draft.sellingModels.map((model, idx) => (
+                <tr key={model.id}>
+                  <td className={styles.colDisplayName}>
+                    <SalesforceLookupInput
+                      value={model.displayName}
+                      onChange={(v) => updateSellingModel(idx, 'displayName', v)}
+                      onSelect={(rec) => selectSellingModelOption(idx, rec)}
+                      sObject="ProductSellingModel"
+                      queryFields={['Id', 'Name']}
+                      searchFields={['Name']}
+                      valueField="Name"
+                      displayField="Name"
+                      subLabelField="Id"
+                      orderBy="Name ASC"
+                      placeholder="e.g. One-Time"
+                      apiVersion={apiVersion}
+                    />
+                  </td>
+                  <td className={styles.colSfModelId}>
+                    <input
+                      className={styles.cellInput}
+                      type="text"
+                      value={model.sfId}
+                      onChange={(e) => updateSellingModel(idx, 'sfId', e.target.value)}
+                      placeholder="Salesforce ID"
+                    />
+                  </td>
+                  <td className={styles.colDel}>
+                    <button
+                      type="button"
+                      className={styles.btnIcon}
+                      aria-label={`Delete ${model.displayName || 'row'}`}
+                      onClick={() => deleteSellingModel(idx)}
+                    >
+                      ×
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <button type="button" className={styles.addRow} onClick={addSellingModel}>
+          + Add row
+        </button>
+      </fieldset>
+
+      <fieldset className={styles.section}>
         <legend className={styles.sectionTitle}>Products</legend>
         <div className={styles.tableWrap}>
           <table className={styles.table}>
@@ -124,12 +238,20 @@ export function AdminProductCatalogPage() {
               {draft.products.map((product, idx) => (
                 <tr key={product.id}>
                   <td className={styles.colName}>
-                    <input
-                      className={styles.cellInput}
-                      type="text"
+                    <SalesforceLookupInput
                       value={product.name}
-                      onChange={(e) => updateRow(idx, 'name', e.target.value)}
+                      onChange={(v) => updateRow(idx, 'name', v)}
+                      onSelect={(rec) => selectProduct2(idx, rec)}
+                      sObject="Product2"
+                      queryFields={['Id', 'Name', 'Family']}
+                      searchFields={['Name']}
+                      valueField="Name"
+                      displayField="Name"
+                      subLabelField="Family"
+                      extraWhere="IsActive = true"
+                      orderBy="Name ASC"
                       placeholder="Product name"
+                      apiVersion={apiVersion}
                     />
                   </td>
                   <td className={styles.colFamily}>
