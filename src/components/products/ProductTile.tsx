@@ -9,7 +9,7 @@ type ProductTileProps = {
 }
 
 export function ProductTile({ product }: ProductTileProps) {
-  const detailPath = `/appliance-models/${product.id}`
+  const detailPath = `/products/${product.id}`
   const [imgFailed, setImgFailed] = useState(false)
 
   const showImg = Boolean(product.imageUrl.trim()) && !imgFailed

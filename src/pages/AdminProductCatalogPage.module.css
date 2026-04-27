@@ -194,6 +194,8 @@
 .colSfId { min-width: 140px; }
 .colImage { min-width: 200px; }
 .colDel { width: 40px; text-align: center; }
+.colDisplayName { min-width: 180px; }
+.colSfModelId { min-width: 200px; }
 
 .addRow {
   display: inline-flex;
