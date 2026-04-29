@@ -1,12 +1,12 @@
-import type { ApplianceModel } from '../../data/appliance-models'
-import { ApplianceModelTile } from './ApplianceModelTile'
-import styles from './ModelsTileGrid.module.css'
+import type { ProductModel } from '../../data/product-models'
+import { ProductModelTile } from './ProductModelTile'
+import styles from './ProductModelsTileGrid.module.css'
 
-type ModelsTileGridProps = {
-  models: ApplianceModel[]
+type ProductModelsTileGridProps = {
+  models: ProductModel[]
 }
 
-export function ModelsTileGrid({ models }: ModelsTileGridProps) {
+export function ProductModelsTileGrid({ models }: ProductModelsTileGridProps) {
   const n = models.length
 
   return (
@@ -23,7 +23,7 @@ export function ModelsTileGrid({ models }: ModelsTileGridProps) {
       <ul className={styles.grid} role="list">
         {models.map((model) => (
           <li key={model.slug} className={styles.item}>
-            <ApplianceModelTile model={model} />
+            <ProductModelTile model={model} />
           </li>
         ))}
       </ul>

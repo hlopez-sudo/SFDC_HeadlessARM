@@ -5,7 +5,7 @@
       "default": true
     }
   ],
-  "name": "FortiCloud",
+  "name": "Revenue Cloud",
   "namespace": "",
   "sfdcLoginUrl": "https://login.salesforce.com",
   "sourceApiVersion": "62.0"

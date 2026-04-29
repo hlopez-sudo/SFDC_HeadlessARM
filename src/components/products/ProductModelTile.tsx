@@ -1,7 +1,7 @@
 import { ChevronRight, Server } from 'lucide-react'
 import { Link } from 'react-router-dom'
-import type { ApplianceModel } from '../../data/appliance-models'
-import styles from './ApplianceModelTile.module.css'
+import type { ProductModel } from '../../data/product-models'
+import styles from './ProductModelTile.module.css'
 
 function parseThreatProtection(tp: string): { value: string; unit: string } {
   const parts = tp.trim().split(/\s+/)
@@ -14,11 +14,11 @@ function parseThreatProtection(tp: string): { value: string; unit: string } {
   return { value: tp, unit: '' }
 }
 
-type ApplianceModelTileProps = {
-  model: ApplianceModel
+type ProductModelTileProps = {
+  model: ProductModel
 }
 
-export function ApplianceModelTile({ model }: ApplianceModelTileProps) {
+export function ProductModelTile({ model }: ProductModelTileProps) {
   const { value: metricNum, unit: metricUnit } = parseThreatProtection(
     model.threatProtection,
   )

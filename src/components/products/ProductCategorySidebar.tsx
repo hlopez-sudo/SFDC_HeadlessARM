@@ -1,7 +1,7 @@
 import { Building2, Cloud, Router, Server } from 'lucide-react'
-import type { CategoryId } from '../../data/appliance-models'
-import { categories } from '../../data/appliance-models'
-import styles from './CategorySidebar.module.css'
+import type { CategoryId } from '../../data/product-models'
+import { categories } from '../../data/product-models'
+import styles from './ProductCategorySidebar.module.css'
 
 const icons: Record<CategoryId, typeof Server> = {
   'data-center': Server,
@@ -10,12 +10,12 @@ const icons: Record<CategoryId, typeof Server> = {
   fgaas: Cloud,
 }
 
-type CategorySidebarProps = {
+type ProductCategorySidebarProps = {
   activeId: CategoryId
   onSelect: (id: CategoryId) => void
 }
 
-export function CategorySidebar({ activeId, onSelect }: CategorySidebarProps) {
+export function ProductCategorySidebar({ activeId, onSelect }: ProductCategorySidebarProps) {
   return (
     <div className={styles.rail} role="tablist" aria-label="Product categories">
       {categories.map((cat) => {

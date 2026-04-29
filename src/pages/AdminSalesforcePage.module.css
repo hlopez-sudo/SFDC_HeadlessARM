@@ -193,7 +193,26 @@
 
 .fieldLabel {
   font-size: 13px;
+  font-weight: 700;
   color: var(--fc-text-muted);
+}
+
+.fieldLabelRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35em 0.75em;
+  line-height: 1.4;
+}
+
+.fieldLabelHelp {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--fc-text-muted);
+}
+
+.fieldLabelHelp strong {
+  font-weight: 700;
 }
 
 .textInput {
@@ -216,6 +235,7 @@
 .fieldHint {
   margin: 0;
   font-size: 12px;
+  font-weight: 400;
   line-height: 1.45;
   color: var(--fc-text-muted);
 }
@@ -278,4 +298,63 @@
   font-size: 13px;
   color: #065f46;
   font-weight: 500;
+}
+
+.radioGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.radioLabel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--fc-text);
+  cursor: pointer;
+}
+
+.disconnectBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border: 1px solid var(--fc-border);
+  border-radius: var(--fc-radius-sm);
+  background: var(--fc-surface);
+  color: var(--fc-text);
+  font-size: 14px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.disconnectBtn:hover:not(:disabled) {
+  border-color: #cf222e;
+  color: #cf222e;
+}
+
+.disconnectBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.oauthError {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  border-radius: var(--fc-radius-sm);
+  background: #fff0f0;
+  border: 1px solid #fca5a5;
+  color: #b91c1c;
+  font-size: 13px;
+}
+
+.link {
+  color: var(--fc-accent, #0969da);
+  text-decoration: underline;
+  cursor: pointer;
 }

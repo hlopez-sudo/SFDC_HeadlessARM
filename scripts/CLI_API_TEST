@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+# POST runSalesforceHeadlessPricing (tested OK against QB_260Config, API v67).
+#
+# Context wiring (re-verify in your org):
+#   sf data query -q "SELECT Id, DeveloperName FROM ContextDefinition WHERE DeveloperName = 'RLM_SalesTransactionContext'"
+#   sf data query -q "SELECT Id, ContextDefinitionId, VersionNumber FROM ContextDefinitionVersion WHERE ContextDefinitionId = '<ContextDefinition Id>'"
+#   sf data query -q "SELECT Id, Title, ContextDefinitionVersionId FROM ContextMapping WHERE ContextDefinitionVersionId = '<version Id>' AND Title = 'SalesTransaction'"
+# Expression set procedures:
+#   sf data query -q "SELECT Id, DeveloperName FROM ExpressionSetDefinition WHERE DeveloperName IN ('RLM_DefaultPricingProcedure','RLM_DefaultPricingDiscoveryProcedure')"
+#
+# Use the SalesTransaction ContextMapping (not QuoteEntitiesMapping). discoveryProcedure expects DeveloperName, not 18-char Id.
+
+set -euo pipefail
+
+TARGET_ORG="${SF_TARGET_ORG:-QB_260Config}"
+API_VER="${SF_API_VERSION:-67.0}"
+
+exec sf api request rest "/services/data/v67.0/actions/standard/runSalesforceHeadlessPricing" \
+  --method POST \
+  --target-org "QB_260Config" \
+  --body '{
+  "inputs": [
+    {
+      "contextMappingId": "11jWs0000C74qE7IQI",
+      "contextDefinitionId": "11OWs000000VYobMAG",
+      "pricingProcedureId": "RLM_DefaultPricingProcedure",
+      "discoveryProcedure": "RLM_DefaultPricingDiscoveryProcedure",
+      "displayContext": false,
+      "isHighVolumeLineItems": false,
+      "skipDiscovery": false,
+      "taggedData": false,
+      "pricingData": "{\"SalesTransaction\":{\"businessObjectType\":\"SalesTransaction\",\"CurrencyIsoCode\":\"USD\",\"SalesTransactionItem\":[{\"businessObjectType\":\"SalesTransactionItem\",\"SalesTransactionItemSource\":\"LINE_ITEM1\",\"Product\":\"01tWs00000DNPavIAH\",\"Quantity\":1,\"ProductSellingModel\":\"0jPWs000000Y4NnMAK\"}],\"Pricebook\":\"01sWs0000035BCPIA2\"}}",
+      "isSkipWaterfall": false,
+      "persistContext": false,
+      "useSessionScopedContext": false
+    }
+  ]
+}'

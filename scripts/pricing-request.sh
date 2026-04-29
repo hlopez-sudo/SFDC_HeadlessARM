@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Run the pricing practice script using the Salesforce CLI session (default org: forticloud-cursor).
+# Run the pricing practice script using the Salesforce CLI session (default org: revenue-cloud-commerce).
 # Usage: ./scripts/pricing-request.sh
 #        ./scripts/pricing-request.sh --product-id 01tXXXX --api-version 67.0
 #

@@ -6,6 +6,7 @@ export type SalesforceOrgInfo = {
   alias: string
   orgId: string
   apiVersion: string
+  isOAuthConnected: boolean
 }
 
 export const DEFAULT_SF_ORG_INFO: SalesforceOrgInfo = {
@@ -16,4 +17,5 @@ export const DEFAULT_SF_ORG_INFO: SalesforceOrgInfo = {
   alias: '',
   orgId: '',
   apiVersion: '67.0',
+  isOAuthConnected: false,
 }

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Writes VITE_SF_INSTANCE_URL and VITE_SF_ACCESS_TOKEN to .env.local from the
-# Salesforce CLI session (org alias: forticloud-cursor by default).
+# Salesforce CLI session (org alias: revenue-cloud-commerce by default).
 # Run once per session — SF tokens expire after ~2 hours:
 #   bash scripts/sf-setup-env.sh
 # or:
@@ -10,7 +10,7 @@
 
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-TARGET_ORG="${SF_TARGET_ORG:-forticloud-cursor}"
+TARGET_ORG="${SF_TARGET_ORG:-revenue-cloud-commerce}"
 
 echo "Fetching Salesforce credentials for org: ${TARGET_ORG} ..."
 JSON="$(sf org display --target-org "${TARGET_ORG}" --json)"
