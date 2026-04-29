@@ -25,6 +25,8 @@ function parseStored(raw: string | null): SiteBranding | null {
           : DEFAULT_BRANDING.logoMode,
       logoUrl: typeof data.logoUrl === 'string' ? data.logoUrl : '',
       logoDataUrl: typeof data.logoDataUrl === 'string' ? data.logoDataUrl : '',
+      faviconUrl:
+        typeof data.faviconUrl === 'string' ? data.faviconUrl : DEFAULT_BRANDING.faviconUrl,
       colors: {
         main: colors.main,
         highlight: colors.highlight,

@@ -9,7 +9,7 @@ import {
 } from 'react'
 import { useSiteBranding } from '../branding/SiteBrandingContext'
 import { hexToRgb } from '../branding/colorUtils'
-import { DEFAULT_BRANDING, type SiteBranding, type SiteBrandingColors } from '../branding/types'
+import { DEFAULT_BRANDING, DEFAULT_LOGO_URL, type SiteBranding, type SiteBrandingColors } from '../branding/types'
 import styles from './AdminGeneralPage.module.css'
 
 const MAX_LOGO_BYTES = 1024 * 1024
@@ -79,6 +79,10 @@ export function AdminGeneralPage() {
 
   const onSiteNameChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
     setDraft((prev) => ({ ...prev, siteName: e.target.value }))
+  }, [])
+
+  const onFaviconUrlChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
+    setDraft((prev) => ({ ...prev, faviconUrl: e.target.value }))
   }, [])
 
   const onLogoUrlChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
@@ -194,6 +198,29 @@ export function AdminGeneralPage() {
             onChange={onSiteNameChange}
           />
           <p className={styles.hint}>Shown in the header and as the browser tab title.</p>
+        </div>
+      </fieldset>
+
+      <fieldset className={styles.section}>
+        <legend className={styles.sectionTitle}>Favicon</legend>
+        <div className={styles.field}>
+          <label className={styles.label} htmlFor={`${idPrefix}-favicon-url`}>
+            Favicon URL
+          </label>
+          <input
+            id={`${idPrefix}-favicon-url`}
+            className={styles.input}
+            type="url"
+            inputMode="url"
+            placeholder={DEFAULT_LOGO_URL}
+            autoComplete="off"
+            value={draft.faviconUrl}
+            onChange={onFaviconUrlChange}
+          />
+          <p className={styles.hint}>
+            Direct HTTPS image URL for the browser tab icon. Leave blank to use the default Salesforce
+            logo (same as header default).
+          </p>
         </div>
       </fieldset>
 

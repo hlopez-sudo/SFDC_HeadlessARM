@@ -3,7 +3,7 @@ import { Navigate, useParams } from 'react-router-dom'
 import { ProductImageGallery } from '../components/products/detail/ProductImageGallery'
 import { SalesforcePricingPanel } from '../components/products/detail/SalesforcePricingPanel'
 import { AppBreadcrumbs } from '../components/navigation/AppBreadcrumbs'
-import { modelDetailsBySlug, productGalleryImages } from '../data/product-models'
+import { modelDetailsBySlug } from '../data/product-models'
 import { useCatalog } from '../catalog/CatalogContext'
 import { useSalesforcePricing } from '../hooks/useSalesforcePricing'
 import { useProductSellingModels } from '../hooks/useProductSellingModels'
@@ -118,7 +118,7 @@ export function ProductDetailPage() {
   const galleryImages: readonly { src: string; alt: string }[] =
     catalogProduct.imageUrl.trim()
       ? [{ src: catalogProduct.imageUrl, alt: catalogProduct.name }]
-      : productGalleryImages
+      : []
 
   const bumpQty = (delta: number) => {
     const next = Math.min(MAX_QTY, Math.max(1, quantity + delta))
