@@ -313,18 +313,6 @@ export type ModelDetailContent = {
   specs: { label: string; value: string }[]
 }
 
-/** Shared product shots for both detail pages (7121F and 7081F). */
-export const productGalleryImages: readonly { src: string; alt: string }[] = [
-  {
-    src: '/product-gallery/chassis-front.png',
-    alt: 'FortiGate product chassis front view with modules, ports, and status indicators',
-  },
-  {
-    src: '/product-gallery/fan-tray.png',
-    alt: 'Cooling fan tray assembly with nine fans in a three-by-three grid',
-  },
-]
-
 export const modelDetailsBySlug: Record<string, ModelDetailContent> = {
   'fortigate-7121f': {
     slug: 'fortigate-7121f',

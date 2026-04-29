@@ -10,6 +10,8 @@ export type SiteBranding = {
   logoMode: 'default' | 'url' | 'upload'
   logoUrl: string
   logoDataUrl: string
+  /** Empty uses DEFAULT_LOGO_URL at apply time (browser tab icon). */
+  faviconUrl: string
   colors: SiteBrandingColors
 }
 
@@ -21,6 +23,7 @@ export const DEFAULT_BRANDING: SiteBranding = {
   logoMode: 'url',
   logoUrl: DEFAULT_LOGO_URL,
   logoDataUrl: '',
+  faviconUrl: DEFAULT_LOGO_URL,
   colors: {
     main: '#00a1e0',
     highlight: '#ffffff',

@@ -43,4 +43,13 @@ export function applyBrandingToDocument(branding: SiteBranding): void {
   }
 
   document.title = branding.siteName.trim() || 'My Commerce'
+
+  const faviconHref = branding.faviconUrl.trim() || DEFAULT_BRANDING.faviconUrl
+  let iconLink = document.querySelector('link[rel="icon"]') as HTMLLinkElement | null
+  if (!iconLink) {
+    iconLink = document.createElement('link')
+    iconLink.rel = 'icon'
+    document.head.appendChild(iconLink)
+  }
+  iconLink.href = faviconHref
 }
