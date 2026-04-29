@@ -60,7 +60,7 @@ export function SalesforcePricingPanel({ pricing, requestPayload }: Props) {
             )}
 
             {source === 'headless' && headlessSteps.length > 0 && (
-              <details className={styles.waterfallDetails} open>
+              <details className={styles.waterfallDetails}>
                 <summary className={styles.waterfallSummary}>Headless pricing waterfall</summary>
                 <div className={styles.headlessTableWrap}>
                   <table className={`${styles.stepsTable} ${styles.headlessWaterfallTable}`}>

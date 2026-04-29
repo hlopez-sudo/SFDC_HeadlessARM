@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Salesforce pricing practice script (forticloud-cursor by default).
+ * Salesforce pricing practice script (revenue-cloud-commerce by default).
  *
  * 1) POST Subscription Management "Calculate price" (Buy Now / Pricing API):
  *    POST /services/data/{apiVersion}/commerce/pricing/sales-transactions/actions/calculate-price
@@ -17,7 +17,7 @@
 import { execSync } from 'node:child_process'
 import { parseArgs } from 'node:util'
 
-const DEFAULT_ORG = 'forticloud-cursor'
+const DEFAULT_ORG = 'revenue-cloud-commerce'
 const DEFAULT_PRODUCT_ID = '01tWt00000CXI9TIAX'
 const DEFAULT_API_VERSION = '67.0'
 

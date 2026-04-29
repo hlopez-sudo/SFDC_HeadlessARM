@@ -3,11 +3,11 @@ import { Link } from 'react-router-dom'
 import styles from './AppBreadcrumbs.module.css'
 
 type AppBreadcrumbsProps = {
-  /** When set, last crumb is the model name and "Products" links home */
-  modelName?: string
+  /** When set, last crumb is the product name and "Products" links home */
+  productName?: string
 }
 
-export function AppBreadcrumbs({ modelName }: AppBreadcrumbsProps) {
+export function AppBreadcrumbs({ productName }: AppBreadcrumbsProps) {
   return (
     <nav className={styles.nav} aria-label="Breadcrumb">
       <ol className={styles.list}>
@@ -21,7 +21,7 @@ export function AppBreadcrumbs({ modelName }: AppBreadcrumbsProps) {
           <span>Products</span>
           <ChevronRight className={styles.sep} size={14} aria-hidden />
         </li>
-        {modelName ? (
+        {productName ? (
           <>
             <li className={styles.item}>
               <Link className={styles.link} to="/">
@@ -30,7 +30,7 @@ export function AppBreadcrumbs({ modelName }: AppBreadcrumbsProps) {
               <ChevronRight className={styles.sep} size={14} aria-hidden />
             </li>
             <li className={`${styles.item} ${styles.current}`} aria-current="page">
-              {modelName}
+              {productName}
             </li>
           </>
         ) : (

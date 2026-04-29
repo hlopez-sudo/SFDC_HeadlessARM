@@ -1,0 +1,35 @@
+.intro {
+  margin: 0 0 24px;
+  max-width: 52rem;
+  color: var(--fc-text-muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.section {
+  margin-bottom: 28px;
+  max-width: 52rem;
+}
+
+.sectionTitle {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0 0 12px;
+  color: var(--fc-text);
+}
+
+.list {
+  margin: 0;
+  padding-left: 20px;
+  color: var(--fc-text);
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.list li {
+  margin-bottom: 10px;
+}
+
+.list li:last-child {
+  margin-bottom: 0;
+}

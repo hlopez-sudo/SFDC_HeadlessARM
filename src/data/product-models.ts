@@ -1,6 +1,6 @@
 export type CategoryId = 'data-center' | 'campus' | 'branch' | 'fgaas'
 
-export type ApplianceModel = {
+export type ProductModel = {
   slug: string
   name: string
   threatProtection: string
@@ -21,7 +21,7 @@ export const categories: {
   { id: 'fgaas', label: 'FortiGate-as-a-Service', shortLabel: 'FGaaS' },
 ]
 
-export const applianceModels: ApplianceModel[] = [
+export const productModels: ProductModel[] = [
   // High-End (Data Center)
   {
     slug: 'fortigate-7121f',
@@ -285,19 +285,19 @@ export const applianceModels: ApplianceModel[] = [
 ]
 
 const detailSlugs = new Set(
-  applianceModels.filter((m) => m.hasDetailPage).map((m) => m.slug),
+  productModels.filter((m) => m.hasDetailPage).map((m) => m.slug),
 )
 
 export function isDetailSlug(slug: string): boolean {
   return detailSlugs.has(slug)
 }
 
-export function getModelBySlug(slug: string): ApplianceModel | undefined {
-  return applianceModels.find((m) => m.slug === slug)
+export function getProductModelBySlug(slug: string): ProductModel | undefined {
+  return productModels.find((m) => m.slug === slug)
 }
 
-export function getModelsByCategory(categoryId: CategoryId): ApplianceModel[] {
-  return applianceModels.filter((m) => m.categoryId === categoryId)
+export function getProductModelsByCategory(categoryId: CategoryId): ProductModel[] {
+  return productModels.filter((m) => m.categoryId === categoryId)
 }
 
 export type ModelDetailContent = {
@@ -317,7 +317,7 @@ export type ModelDetailContent = {
 export const productGalleryImages: readonly { src: string; alt: string }[] = [
   {
     src: '/product-gallery/chassis-front.png',
-    alt: 'FortiGate appliance chassis front view with modules, ports, and status indicators',
+    alt: 'FortiGate product chassis front view with modules, ports, and status indicators',
   },
   {
     src: '/product-gallery/fan-tray.png',

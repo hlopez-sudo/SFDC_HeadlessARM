@@ -1,9 +1,9 @@
 import { useCatalog } from '../catalog/CatalogContext'
 import { ProductTile } from '../components/products/ProductTile'
 import { AppBreadcrumbs } from '../components/navigation/AppBreadcrumbs'
-import styles from './ApplianceModelsPage.module.css'
+import styles from './ProductsPage.module.css'
 
-export function ApplianceModelsPage() {
+export function ProductsPage() {
   const { catalog } = useCatalog()
 
   return (

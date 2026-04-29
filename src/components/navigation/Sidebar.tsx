@@ -62,6 +62,14 @@ export function Sidebar() {
           {administrationOpen && (
             <div className={styles.subList}>
               <NavLink
+                to="/admin/readme"
+                className={({ isActive }) =>
+                  `${styles.subItem} ${isActive ? styles.subItemActive : ''}`
+                }
+              >
+                README
+              </NavLink>
+              <NavLink
                 to="/admin"
                 end
                 className={({ isActive }) =>

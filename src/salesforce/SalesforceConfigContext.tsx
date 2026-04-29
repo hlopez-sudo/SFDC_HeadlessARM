@@ -14,9 +14,9 @@ import { DEFAULT_SF_ORG_INFO, type SalesforceOrgInfo } from './types'
 
 type SalesforceConfigContextValue = {
   orgInfo: SalesforceOrgInfo
-  /** Re-fetch org info from the dev server (which re-reads the CLI). */
   refresh: () => Promise<void>
   loading: boolean
+  isOAuthConnected: boolean
 }
 
 // ---------------------------------------------------------------------------
@@ -53,7 +53,7 @@ export function SalesforceConfigProvider({ children }: { children: ReactNode }) 
   }, [refresh])
 
   return (
-    <SalesforceConfigContext.Provider value={{ orgInfo, refresh, loading }}>
+    <SalesforceConfigContext.Provider value={{ orgInfo, refresh, loading, isOAuthConnected: orgInfo.isOAuthConnected }}>
       {children}
     </SalesforceConfigContext.Provider>
   )
@@ -70,6 +70,7 @@ export function useSalesforceConfig(): SalesforceConfigContextValue {
       orgInfo: DEFAULT_SF_ORG_INFO,
       refresh: async () => {},
       loading: false,
+      isOAuthConnected: false,
     }
   }
   return ctx

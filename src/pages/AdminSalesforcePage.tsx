@@ -17,6 +17,31 @@ function InfoRow({ label, value }: { label: string; value: string }) {
   )
 }
 
+// ---------------------------------------------------------------------------
+// OAuth UI config persistence
+// ---------------------------------------------------------------------------
+
+const SF_OAUTH_CONFIG_KEY = 'genericCommerce.sfOAuthConfig'
+
+type SfOAuthUIConfig = { loginUrl: string }
+
+function loadOAuthUIConfig(): SfOAuthUIConfig {
+  try {
+    const raw = localStorage.getItem(SF_OAUTH_CONFIG_KEY)
+    return raw ? (JSON.parse(raw) as SfOAuthUIConfig) : { loginUrl: 'https://login.salesforce.com' }
+  } catch {
+    return { loginUrl: 'https://login.salesforce.com' }
+  }
+}
+
+function saveOAuthUIConfig(cfg: SfOAuthUIConfig): void {
+  localStorage.setItem(SF_OAUTH_CONFIG_KEY, JSON.stringify(cfg))
+}
+
+// ---------------------------------------------------------------------------
+// Lookup meta persistence
+// ---------------------------------------------------------------------------
+
 const LOOKUP_META_KEY = 'genericCommerce.headlessPricing.lookupMeta'
 
 type LookupMeta = {
@@ -37,6 +62,219 @@ function saveLookupMeta(meta: LookupMeta) {
   localStorage.setItem(LOOKUP_META_KEY, JSON.stringify(meta))
 }
 
+// ---------------------------------------------------------------------------
+// SalesforceConnectSection
+// ---------------------------------------------------------------------------
+
+type DeviceFlowState =
+  | { phase: 'idle' }
+  | { phase: 'waiting'; sessionId: string; verificationUri: string; interval: number }
+  | { phase: 'error'; message: string }
+
+function SalesforceConnectSection() {
+  const { orgInfo, refresh, loading, isOAuthConnected } = useSalesforceConfig()
+
+  const [savedConfig] = useState<SfOAuthUIConfig>(loadOAuthUIConfig)
+  const [loginUrlType, setLoginUrlType] = useState<'production' | 'sandbox' | 'custom'>(() => {
+    const u = savedConfig.loginUrl
+    if (u === 'https://login.salesforce.com') return 'production'
+    if (u === 'https://test.salesforce.com') return 'sandbox'
+    return 'custom'
+  })
+  const [customLoginUrl, setCustomLoginUrl] = useState(
+    loginUrlType === 'custom' ? savedConfig.loginUrl : '',
+  )
+  const [deviceFlow, setDeviceFlow] = useState<DeviceFlowState>({ phase: 'idle' })
+
+  const resolvedLoginUrl =
+    loginUrlType === 'production' ? 'https://login.salesforce.com'
+    : loginUrlType === 'sandbox' ? 'https://test.salesforce.com'
+    : customLoginUrl
+
+  // Poll every 3 seconds while waiting for the user to approve in Salesforce
+  useEffect(() => {
+    if (deviceFlow.phase !== 'waiting') return
+    const { sessionId } = deviceFlow
+
+    const timer = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/sf-config/oauth/poll?sessionId=${sessionId}`)
+        const data = await res.json() as { status: string; message?: string }
+
+        if (data.status === 'connected') {
+          clearInterval(timer)
+          setDeviceFlow({ phase: 'idle' })
+          void refresh()
+        } else if (data.status === 'expired' || data.status === 'error') {
+          clearInterval(timer)
+          setDeviceFlow({ phase: 'error', message: data.message ?? 'Authorization expired. Please try again.' })
+        }
+        // 'pending' → keep polling
+      } catch {
+        // network hiccup — keep polling
+      }
+    }, 3000)
+
+    return () => clearInterval(timer)
+  }, [deviceFlow, refresh])
+
+  async function handleConnect() {
+    if (loginUrlType === 'custom' && !customLoginUrl.startsWith('https://')) {
+      setDeviceFlow({ phase: 'error', message: 'Custom login URL must start with https://' })
+      return
+    }
+    setDeviceFlow({ phase: 'idle' })
+    saveOAuthUIConfig({ loginUrl: resolvedLoginUrl })
+
+    try {
+      const res = await fetch(`/api/sf-config/oauth/init?loginUrl=${encodeURIComponent(resolvedLoginUrl)}`)
+      const data = await res.json() as { sessionId?: string; authUrl?: string; error?: string }
+
+      if (!res.ok || !data.sessionId || !data.authUrl) {
+        setDeviceFlow({ phase: 'error', message: data.error ?? 'Failed to start login. Check the server log.' })
+        return
+      }
+
+      // Open the Salesforce login page in a new tab
+      window.open(data.authUrl, '_blank', 'noopener,noreferrer')
+
+      setDeviceFlow({
+        phase: 'waiting',
+        sessionId: data.sessionId,
+        verificationUri: data.authUrl,
+        interval: 3,
+      })
+    } catch (e) {
+      setDeviceFlow({ phase: 'error', message: (e as Error).message })
+    }
+  }
+
+  async function handleDisconnect() {
+    await fetch('/api/sf-config/logout', { method: 'POST' })
+    void refresh()
+  }
+
+  // Connected view
+  if (isOAuthConnected && orgInfo.connected) {
+    return (
+      <div className={local.card}>
+        <div className={local.configCardHeader}>
+          <p className={local.cardTitle}>Salesforce Connection</p>
+          <span className={local.badgeOk}><CheckCircle size={12} /> Connected</span>
+        </div>
+        <InfoRow label="Username" value={orgInfo.username} />
+        <InfoRow label="Instance URL" value={orgInfo.instanceUrl} />
+        <InfoRow label="Org ID" value={orgInfo.orgId} />
+        <InfoRow label="API Version" value={orgInfo.apiVersion} />
+        <div className={local.formActions}>
+          <button
+            type="button"
+            className={local.disconnectBtn}
+            onClick={() => { void handleDisconnect() }}
+            disabled={loading}
+          >
+            Disconnect
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  // Waiting for user to approve in Salesforce
+  if (deviceFlow.phase === 'waiting') {
+    return (
+      <div className={local.card}>
+        <div className={local.configCardHeader}>
+          <p className={local.cardTitle}>Salesforce Connection</p>
+          <span className={local.badgeOff}><RefreshCw size={12} className={local.spin} /> Waiting for approval…</span>
+        </div>
+        <p className={styles.muted} style={{ marginBottom: 12 }}>
+          A Salesforce login tab was opened. Log in and this page will connect automatically.
+        </p>
+        <p className={styles.muted}>
+          Tab didn't open?{' '}
+          <a href={deviceFlow.verificationUri} target="_blank" rel="noopener noreferrer" className={local.link}>
+            Click here to open Salesforce login
+          </a>
+        </p>
+        <div className={local.formActions} style={{ marginTop: 16 }}>
+          <button
+            type="button"
+            className={local.disconnectBtn}
+            onClick={() => setDeviceFlow({ phase: 'idle' })}
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  // Connect form (idle or error)
+  return (
+    <div className={local.card}>
+      <div className={local.configCardHeader}>
+        <p className={local.cardTitle}>Salesforce Connection</p>
+        {!isOAuthConnected && orgInfo.connected && (
+          <span className={local.badgeOff}>Using env-var credentials</span>
+        )}
+      </div>
+
+      {deviceFlow.phase === 'error' && (
+        <div className={local.oauthError}>
+          <XCircle size={14} />
+          {deviceFlow.message}
+        </div>
+      )}
+
+      <p className={local.formSectionLabel}>Environment</p>
+      <div className={local.radioGroup}>
+        {(['production', 'sandbox', 'custom'] as const).map((opt) => (
+          <label key={opt} className={local.radioLabel}>
+            <input
+              type="radio"
+              name="loginUrlType"
+              value={opt}
+              checked={loginUrlType === opt}
+              onChange={() => { setLoginUrlType(opt); setDeviceFlow({ phase: 'idle' }) }}
+            />
+            {opt === 'production' ? 'Production (login.salesforce.com)'
+             : opt === 'sandbox' ? 'Sandbox (test.salesforce.com)'
+             : 'Custom domain'}
+          </label>
+        ))}
+      </div>
+
+      {loginUrlType === 'custom' && (
+        <input
+          className={local.textInput}
+          value={customLoginUrl}
+          onChange={(e) => { setCustomLoginUrl(e.target.value); setDeviceFlow({ phase: 'idle' }) }}
+          placeholder="https://mydomain.my.salesforce.com"
+          autoComplete="off"
+          spellCheck={false}
+          style={{ marginBottom: 12 }}
+        />
+      )}
+
+      <div className={local.formActions} style={{ marginTop: 16 }}>
+        <button
+          type="button"
+          className={local.runBtn}
+          onClick={() => { void handleConnect() }}
+          disabled={loading}
+        >
+          Connect with Salesforce
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// HeadlessPricingConfigSection
+// ---------------------------------------------------------------------------
+
 function HeadlessPricingConfigSection() {
   const { config, setConfig, isComplete } = useHeadlessPricingConfig()
   const { orgInfo } = useSalesforceConfig()
@@ -46,7 +284,6 @@ function HeadlessPricingConfigSection() {
   const [saved, setSaved] = useState(false)
   const [lookupMeta, setLookupMeta] = useState<LookupMeta>(loadLookupMeta)
 
-  // Keep local form in sync if config changes from another source
   useEffect(() => {
     setLocal(config)
   }, [config])
@@ -101,7 +338,13 @@ function HeadlessPricingConfigSection() {
 
       <p className={local.formSectionLabel}>Required</p>
       <label className={local.field}>
-        <span className={local.fieldLabel}>contextDefinitionId</span>
+        <span className={local.fieldLabelRow}>
+          <span className={local.fieldLabel}>contextDefinitionId</span>
+          <span className={local.fieldLabelHelp}>
+            Searches for API Name of ContextDefinition and returns the ID: If using QuantumBit search for{' '}
+            <strong>RLM_SalesTransactionContext</strong>
+          </span>
+        </span>
         <SalesforceLookupInput
           value={local_.contextDefinitionId}
           onChange={(v) => field('contextDefinitionId', v)}
@@ -123,7 +366,13 @@ function HeadlessPricingConfigSection() {
         />
       </label>
       <label className={local.field}>
-        <span className={local.fieldLabel}>contextMappingId</span>
+        <span className={local.fieldLabelRow}>
+          <span className={local.fieldLabel}>contextMappingId</span>
+          <span className={local.fieldLabelHelp}>
+            Searches for Description from ContextMapping: If using QuantumBit search for{' '}
+            <strong>Mapping to map entities related to pricing elements</strong>
+          </span>
+        </span>
         <SalesforceLookupInput
           value={local_.contextMappingId}
           onChange={(v) => field('contextMappingId', v)}
@@ -151,7 +400,13 @@ function HeadlessPricingConfigSection() {
         />
       </label>
       <label className={local.field}>
-        <span className={local.fieldLabel}>pricingProcedureId</span>
+        <span className={local.fieldLabelRow}>
+          <span className={local.fieldLabel}>pricingProcedureId</span>
+          <span className={local.fieldLabelHelp}>
+            Searches Expression Set and returns API Name of Pricing Procedure: If using QuantumBit search for{' '}
+            <strong>RLM_DefaultPricingProcedure</strong>
+          </span>
+        </span>
         <SalesforceLookupInput
           value={local_.pricingProcedureId}
           onChange={(v) => field('pricingProcedureId', v)}
@@ -201,9 +456,7 @@ function HeadlessPricingConfigSection() {
           apiVersion={apiVersion}
         />
         <p className={local.fieldHint}>
-          Expression Set definition <code className={local.inlineCode}>DeveloperName</code> from{' '}
-          <code className={local.inlineCode}>ExpressionSetDefinition</code> — not the 18-character
-          record Id.
+          If blank be sure to mark &quot;skipDiscovery&quot; boolean to TRUE.
         </p>
       </label>
       <label className={local.field}>
@@ -252,8 +505,12 @@ function HeadlessPricingConfigSection() {
   )
 }
 
+// ---------------------------------------------------------------------------
+// Page
+// ---------------------------------------------------------------------------
+
 export function AdminSalesforcePage() {
-  const { orgInfo, refresh, loading } = useSalesforceConfig()
+  const { refresh, loading } = useSalesforceConfig()
 
   return (
     <div className={styles.wrap}>
@@ -261,74 +518,18 @@ export function AdminSalesforcePage() {
         <h1 className={styles.title}>Salesforce</h1>
         <button
           className={local.refreshBtn}
-          onClick={refresh}
+          onClick={() => { void refresh() }}
           disabled={loading}
-          title="Re-read org from Salesforce CLI"
+          title="Refresh connection"
         >
           <RefreshCw size={14} className={loading ? local.spin : undefined} />
           Refresh
         </button>
       </div>
 
-      {/* Connection status */}
-      <div className={local.statusBadge}>
-        {orgInfo.connected ? (
-          <>
-            <CheckCircle size={16} className={local.iconOk} />
-            <span>
-              Connected to <strong>{orgInfo.alias || orgInfo.username}</strong>
-            </span>
-          </>
-        ) : (
-          <>
-            <XCircle size={16} className={local.iconOff} />
-            <span>
-              {orgInfo.connectionError
-                ? <>Not connected — <strong>{orgInfo.connectionError}</strong>. Run <code>sf config set target-org &lt;alias&gt;</code> to switch to a valid org, then click Refresh.</>
-                : orgInfo.instanceUrl
-                  ? <>Credentials found for <strong>{orgInfo.alias || orgInfo.instanceUrl}</strong> but API is unreachable. The org may be expired. Run <code>sf org login web --set-default</code>.</>
-                  : 'No org connected. See instructions below.'}
-            </span>
-          </>
-        )}
-      </div>
-
-      {/* Org details */}
-      {orgInfo.connected && (
-        <div className={local.card}>
-          <p className={local.cardTitle}>Connected Org</p>
-          <InfoRow label="Alias" value={orgInfo.alias} />
-          <InfoRow label="Username" value={orgInfo.username} />
-          <InfoRow label="Instance URL" value={orgInfo.instanceUrl} />
-          <InfoRow label="Org ID" value={orgInfo.orgId} />
-          <InfoRow label="API Version" value={orgInfo.apiVersion} />
-        </div>
-      )}
+      <SalesforceConnectSection />
 
       <HeadlessPricingConfigSection />
-
-      {/* Instructions */}
-      <div className={local.instructions}>
-        <p className={local.instrTitle}>How to connect</p>
-        <p className={styles.muted}>
-          This app reads credentials directly from the Salesforce CLI. No passwords or tokens are
-          entered here. The connection updates automatically every 30 seconds.
-        </p>
-        <ol className={local.steps}>
-          <li>
-            Log in and set as default in the CLI:
-            <code className={local.code}>sf org login web --set-default</code>
-          </li>
-          <li>
-            Click <strong>Refresh</strong> above (or wait up to 30 seconds).
-          </li>
-        </ol>
-        <p className={styles.muted}>
-          To switch to a different org that's already authenticated:
-          <code className={local.code}>sf config set target-org &lt;alias&gt;</code>
-          Then click <strong>Refresh</strong>.
-        </p>
-      </div>
     </div>
   )
 }

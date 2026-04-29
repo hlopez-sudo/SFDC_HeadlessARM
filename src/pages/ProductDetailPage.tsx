@@ -1,15 +1,15 @@
 import { useEffect, useId, useMemo, useState } from 'react'
 import { Navigate, useParams } from 'react-router-dom'
-import { ProductImageGallery } from '../components/appliance-models/detail/ProductImageGallery'
-import { SalesforcePricingPanel } from '../components/appliance-models/detail/SalesforcePricingPanel'
+import { ProductImageGallery } from '../components/products/detail/ProductImageGallery'
+import { SalesforcePricingPanel } from '../components/products/detail/SalesforcePricingPanel'
 import { AppBreadcrumbs } from '../components/navigation/AppBreadcrumbs'
-import { modelDetailsBySlug, productGalleryImages } from '../data/appliance-models'
+import { modelDetailsBySlug, productGalleryImages } from '../data/product-models'
 import { useCatalog } from '../catalog/CatalogContext'
 import { useSalesforcePricing } from '../hooks/useSalesforcePricing'
 import { useProductSellingModels } from '../hooks/useProductSellingModels'
 import { useHeadlessPricingConfig } from '../salesforce/HeadlessPricingConfigContext'
 import { buildHeadlessPricingData } from '../salesforce/buildHeadlessPricingData'
-import styles from './ApplianceModelDetailPage.module.css'
+import styles from './ProductDetailPage.module.css'
 
 const MAX_QTY = 99
 
@@ -25,23 +25,21 @@ function formatMoney(amount: number, currencyIsoCode: string): string {
   }).format(amount)
 }
 
-export function ApplianceModelDetailPage() {
-  const { modelSlug = '' } = useParams<{ modelSlug: string }>()
-  const customerId = useId()
+export function ProductDetailPage() {
+  const { productSlug = '' } = useParams<{ productSlug: string }>()
   const sellingModelId = useId()
 
   const [activeGalleryIndex, setActiveGalleryIndex] = useState(0)
   const [quantity, setQuantity] = useState(1)
   const [qtyInput, setQtyInput] = useState('1')
   const [committedQuantity, setCommittedQuantity] = useState(1)
-  const [customer, setCustomer] = useState('pied-piper')
   const [sellingModel, setSellingModel] = useState('')
 
   const { catalog } = useCatalog()
-  const catalogProduct = catalog.products.find((p) => p.id === modelSlug)
+  const catalogProduct = catalog.products.find((p) => p.id === productSlug)
 
   // Supplemental hardcoded data for the two original products
-  const detail = modelDetailsBySlug[modelSlug]
+  const detail = modelDetailsBySlug[productSlug]
 
   const sellingModels = useProductSellingModels()
   const selectedSellingModelId = sellingModels.find((m) => m.name === sellingModel)?.id
@@ -131,7 +129,7 @@ export function ApplianceModelDetailPage() {
 
   return (
     <div className={styles.wrap}>
-      <AppBreadcrumbs modelName={catalogProduct.name} />
+      <AppBreadcrumbs productName={catalogProduct.name} />
 
       <div className={styles.grid}>
         <div className={styles.left}>
@@ -173,20 +171,6 @@ export function ApplianceModelDetailPage() {
               <h2 id="config-heading" className={styles.configTitle}>
                 Configuration Options
               </h2>
-              <div className={styles.field}>
-                <label className={styles.label} htmlFor={customerId}>
-                  Customer
-                </label>
-                <select
-                  id={customerId}
-                  className={styles.select}
-                  value={customer}
-                  onChange={(e) => setCustomer(e.target.value)}
-                >
-                  <option value="pied-piper">Pied Piper</option>
-                  <option value="hooli">Hooli</option>
-                </select>
-              </div>
               <div className={styles.field}>
                 <label className={styles.label} htmlFor={sellingModelId}>
                   Selling Model

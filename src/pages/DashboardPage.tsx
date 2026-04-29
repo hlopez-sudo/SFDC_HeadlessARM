@@ -1,6 +1,6 @@
 import styles from './DashboardPage.module.css'
 
-/** Placeholder so sidebar “Dashboard” can navigate without conflicting with appliance routes */
+/** Placeholder so sidebar “Dashboard” can navigate without conflicting with product routes */
 export function DashboardPage() {
   return (
     <div className={styles.wrap}>
