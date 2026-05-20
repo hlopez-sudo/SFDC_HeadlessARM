@@ -15,6 +15,8 @@ export type HeadlessPricingConfig = {
   pricebookId: string
   discoveryProcedure: string
   effectiveDate: string
+  quoteStartDate: string
+  quoteEndDate: string
   displayContext: boolean
   isHighVolumeLineItems: boolean
   isSkipWaterfall: boolean
@@ -31,6 +33,8 @@ export const DEFAULT_HEADLESS_PRICING_CONFIG: HeadlessPricingConfig = {
   pricebookId: '',
   discoveryProcedure: '',
   effectiveDate: '',
+  quoteStartDate: '',
+  quoteEndDate: '',
   displayContext: false,
   isHighVolumeLineItems: false,
   isSkipWaterfall: false,

@@ -269,6 +269,55 @@
   color: var(--fc-text);
 }
 
+.actionRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  width: 100%;
+  padding-top: 4px;
+}
+
+.btnPrimary {
+  flex: 1;
+  min-width: 100px;
+  padding: 10px 16px;
+  border: 1px solid var(--fc-accent);
+  border-radius: var(--fc-radius-sm);
+  background: var(--fc-accent);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.btnPrimary:hover {
+  background: var(--fc-accent-hover);
+  border-color: var(--fc-accent-hover);
+}
+
+.btnOutline {
+  flex: 1;
+  min-width: 100px;
+  padding: 10px 16px;
+  border: 1px solid var(--fc-border);
+  border-radius: var(--fc-radius-sm);
+  background: var(--fc-surface);
+  color: var(--fc-text);
+  font-size: 14px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.btnOutline:hover {
+  border-color: var(--fc-accent);
+  color: var(--fc-accent);
+  background: var(--fc-accent-muted);
+}
+
 @media (max-width: 960px) {
   .grid {
     grid-template-columns: 1fr;

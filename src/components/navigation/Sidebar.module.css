@@ -129,3 +129,18 @@ a.subItem {
   );
 }
 
+.cartBadge {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1px 6px;
+  border-radius: 10px;
+  background: var(--fc-accent);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  min-width: 18px;
+  line-height: 1.4;
+}
+

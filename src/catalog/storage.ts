@@ -1,4 +1,4 @@
-import { DEFAULT_CATALOG, type CatalogProduct, type ProductCatalog, type SellingModelEntry } from './types'
+import { DEFAULT_CATALOG, type CatalogProduct, type ProductCatalog, type ProductCategoryEntry, type SellingModelEntry } from './types'
 
 const STORAGE_KEY = 'fc-product-catalog'
 
@@ -24,6 +24,15 @@ function parseCatalogProduct(raw: unknown): CatalogProduct | null {
   }
 }
 
+function parseProductCategoryEntry(raw: unknown): ProductCategoryEntry | null {
+  if (typeof raw !== 'object' || raw === null) return null
+  const r = raw as Record<string, unknown>
+  if (typeof r.id !== 'string' || typeof r.displayName !== 'string' || typeof r.sfId !== 'string') {
+    return null
+  }
+  return { id: r.id, displayName: r.displayName, sfId: r.sfId }
+}
+
 function parseSellingModelEntry(raw: unknown): SellingModelEntry | null {
   if (typeof raw !== 'object' || raw === null) return null
   const r = raw as Record<string, unknown>
@@ -41,6 +50,9 @@ function parseStored(raw: string | null): ProductCatalog | null {
     const products = Array.isArray(data.products)
       ? (data.products.map(parseCatalogProduct).filter(Boolean) as CatalogProduct[])
       : DEFAULT_CATALOG.products
+    const productCategories = Array.isArray(data.productCategories)
+      ? (data.productCategories.map(parseProductCategoryEntry).filter(Boolean) as ProductCategoryEntry[])
+      : DEFAULT_CATALOG.productCategories
     const sellingModels = Array.isArray(data.sellingModels)
       ? (data.sellingModels.map(parseSellingModelEntry).filter(Boolean) as SellingModelEntry[])
       : DEFAULT_CATALOG.sellingModels
@@ -51,8 +63,9 @@ function parseStored(raw: string | null): ProductCatalog | null {
         typeof data.pageDescription === 'string'
           ? data.pageDescription
           : DEFAULT_CATALOG.pageDescription,
-      products,
+      productCategories,
       sellingModels,
+      products,
     }
   } catch {
     return null

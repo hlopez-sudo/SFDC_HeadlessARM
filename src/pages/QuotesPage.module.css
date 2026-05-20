@@ -1,0 +1,263 @@
+.wrap {
+  padding: 20px 24px 40px;
+  max-width: 900px;
+}
+
+.pageHeader {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.title {
+  font-size: 22px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.itemCount {
+  font-size: 13px;
+  color: var(--fc-text-muted);
+}
+
+.emptyState {
+  margin-top: 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.emptyText {
+  margin: 0;
+  font-size: 15px;
+  color: var(--fc-text-muted);
+  font-style: italic;
+}
+
+.browseLink {
+  font-size: 14px;
+  color: var(--fc-accent);
+  text-decoration: underline;
+}
+
+.tableWrap {
+  overflow-x: auto;
+  border: 1px solid var(--fc-border);
+  border-radius: var(--fc-radius-sm);
+  background: var(--fc-surface);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.th {
+  text-align: left;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--fc-text-muted);
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--fc-border);
+  white-space: nowrap;
+  background: var(--fc-page-bg);
+}
+
+.td {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--fc-border-light, #f0f0f0);
+  vertical-align: middle;
+  color: var(--fc-text);
+}
+
+.td:last-child {
+  width: 40px;
+}
+
+tr:last-child .td {
+  border-bottom: none;
+}
+
+.removeBtn {
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--fc-border);
+  background: transparent;
+  color: var(--fc-text-muted);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: var(--fc-radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.removeBtn:hover {
+  border-color: #cf222e;
+  color: #cf222e;
+  background: #fff0f0;
+}
+
+.footer {
+  margin-top: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 16px;
+}
+
+.totalRow {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+}
+
+.totalLabel {
+  font-size: 14px;
+  color: var(--fc-text-muted);
+}
+
+.totalAmount {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--fc-text);
+}
+
+.footerActions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.requestBtn {
+  padding: 10px 20px;
+  border: 1px solid var(--fc-accent);
+  border-radius: var(--fc-radius-sm);
+  background: var(--fc-accent);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.requestBtn:hover {
+  background: var(--fc-accent-hover);
+  border-color: var(--fc-accent-hover);
+}
+
+.clearBtn {
+  padding: 10px 16px;
+  border: 1px solid var(--fc-border);
+  border-radius: var(--fc-radius-sm);
+  background: transparent;
+  color: var(--fc-text-muted);
+  font-size: 14px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.clearBtn:hover {
+  border-color: #cf222e;
+  color: #cf222e;
+}
+
+.nameField {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 20px;
+  max-width: 400px;
+}
+
+.nameLabel {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--fc-text-muted);
+}
+
+.nameInput {
+  padding: 8px 10px;
+  border: 1px solid var(--fc-border);
+  border-radius: var(--fc-radius-sm);
+  background: var(--fc-surface);
+  font: inherit;
+  font-size: 14px;
+  color: var(--fc-text);
+}
+
+.nameInput:focus {
+  outline: none;
+  border-color: var(--fc-accent);
+  box-shadow: 0 0 0 1px var(--fc-accent-muted);
+}
+
+.nameInput:disabled {
+  opacity: 0.6;
+}
+
+.errorCard {
+  margin-top: 16px;
+  padding: 12px 16px;
+  border-radius: var(--fc-radius-sm);
+  background: #fff0f0;
+  border: 1px solid #fca5a5;
+  color: #b91c1c;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.successCard {
+  margin-top: 24px;
+  padding: 24px;
+  border-radius: var(--fc-radius-sm);
+  background: #d1fae5;
+  border: 1px solid #6ee7b7;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 500px;
+}
+
+.successHeading {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #065f46;
+}
+
+.successId {
+  margin: 0;
+  font-size: 14px;
+  color: #065f46;
+}
+
+.quoteIdValue {
+  font-family: ui-monospace, monospace;
+  font-size: 13px;
+  word-break: break-all;
+}
+
+.newQuoteBtn {
+  align-self: flex-start;
+  padding: 8px 16px;
+  border: 1px solid #059669;
+  border-radius: var(--fc-radius-sm);
+  background: #059669;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.newQuoteBtn:hover {
+  background: #047857;
+  border-color: #047857;
+}

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { RefreshCw, CheckCircle, XCircle, Save } from 'lucide-react'
+import { RefreshCw, CheckCircle, XCircle, Save, User2 } from 'lucide-react'
 import { useSalesforceConfig } from '../salesforce/SalesforceConfigContext'
 import { useHeadlessPricingConfig } from '../salesforce/HeadlessPricingConfigContext'
 import type { HeadlessPricingConfig } from '../salesforce/headlessPricingConfig'
@@ -60,6 +60,29 @@ function loadLookupMeta(): LookupMeta {
 
 function saveLookupMeta(meta: LookupMeta) {
   localStorage.setItem(LOOKUP_META_KEY, JSON.stringify(meta))
+}
+
+// ---------------------------------------------------------------------------
+// Active account persistence
+// ---------------------------------------------------------------------------
+
+const ACTIVE_ACCOUNT_KEY = 'fc-active-account'
+
+type ActiveAccountData = { accountId: string; accountName: string }
+
+function loadActiveAccount(): ActiveAccountData | null {
+  try {
+    const raw = localStorage.getItem(ACTIVE_ACCOUNT_KEY)
+    return raw ? (JSON.parse(raw) as ActiveAccountData) : null
+  } catch { return null }
+}
+
+function saveActiveAccount(data: ActiveAccountData): void {
+  localStorage.setItem(ACTIVE_ACCOUNT_KEY, JSON.stringify(data))
+}
+
+function clearActiveAccount(): void {
+  localStorage.removeItem(ACTIVE_ACCOUNT_KEY)
 }
 
 // ---------------------------------------------------------------------------
@@ -272,6 +295,132 @@ function SalesforceConnectSection() {
 }
 
 // ---------------------------------------------------------------------------
+// ActiveAccountSection
+// ---------------------------------------------------------------------------
+
+function ActiveAccountSection({ isConnected }: { isConnected: boolean }) {
+  const { orgInfo } = useSalesforceConfig()
+  const apiVersion = orgInfo.apiVersion || '62.0'
+
+  const stored = loadActiveAccount()
+  const [currentAccountId, setCurrentAccountId] = useState<string | null>(stored?.accountId ?? null)
+  const [accountName, setAccountName] = useState<string | null>(stored?.accountName ?? null)
+  const [selectedId, setSelectedId] = useState('')
+  const [selectedName, setSelectedName] = useState<string | null>(null)
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
+
+  function handleSet() {
+    if (!selectedId) return
+    setSaveState('saving')
+    try {
+      const name = selectedName ?? selectedId
+      saveActiveAccount({ accountId: selectedId, accountName: name })
+      setCurrentAccountId(selectedId)
+      setAccountName(name)
+      setSaveState('saved')
+      setTimeout(() => setSaveState('idle'), 3000)
+    } catch {
+      setSaveState('error')
+      setTimeout(() => setSaveState('idle'), 3000)
+    }
+  }
+
+  function handleClear() {
+    clearActiveAccount()
+    setCurrentAccountId(null)
+    setAccountName(null)
+    setSelectedId('')
+    setSelectedName(null)
+  }
+
+  return (
+    <div className={local.card}>
+      <div className={local.configCardHeader}>
+        <User2 size={14} className={local.iconOff} />
+        <p className={local.cardTitle}>Active Account</p>
+        {currentAccountId && (
+          <span className={local.badgeOk}>
+            <CheckCircle size={11} />
+            Account Set
+          </span>
+        )}
+      </div>
+
+      {!isConnected && (
+        <div className={local.oauthError}>
+          Connect to Salesforce above before selecting an account.
+        </div>
+      )}
+
+      {currentAccountId && (
+        <div className={local.infoRow} style={{ marginBottom: 12 }}>
+          <span className={local.infoLabel}>Current Account</span>
+          <span style={{ flex: 1, minWidth: 0 }}>
+            {accountName && (
+              <code className={local.infoValue} style={{ display: 'block' }}>{accountName}</code>
+            )}
+            <code className={local.infoValue}>{currentAccountId}</code>
+          </span>
+          <button
+            type="button"
+            className={local.disconnectBtn}
+            style={{ padding: '4px 10px', fontSize: 12 }}
+            onClick={handleClear}
+          >
+            Clear
+          </button>
+        </div>
+      )}
+
+      <div className={local.field}>
+        <label className={local.fieldLabel}>
+          {currentAccountId ? 'Change Account' : 'Select Account'}
+        </label>
+        <SalesforceLookupInput
+          value={selectedId}
+          onChange={setSelectedId}
+          onSelect={(rec) => {
+            setSelectedId((rec as { Id?: string }).Id ?? '')
+            setSelectedName((rec as { Name?: string }).Name ?? null)
+          }}
+          sObject="Account"
+          queryFields={['Id', 'Name']}
+          searchFields={['Name']}
+          valueField="Id"
+          displayField="Name"
+          orderBy="Name ASC"
+          placeholder="Search accounts…"
+          apiVersion={apiVersion}
+        />
+      </div>
+
+      <div className={local.formActions}>
+        <button
+          type="button"
+          className={local.runBtn}
+          disabled={!selectedId || saveState === 'saving' || !isConnected}
+          onClick={handleSet}
+        >
+          {saveState === 'saving' ? 'Saving…' : 'Set Account'}
+        </button>
+        {saveState === 'saved' && (
+          <span className={local.savedHint} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+            <CheckCircle size={13} />
+            Account saved.
+          </span>
+        )}
+        {saveState === 'error' && (
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 13, color: '#b91c1c', fontWeight: 500 }}>
+            <XCircle size={13} />
+            Failed to save account.
+          </span>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
 // HeadlessPricingConfigSection
 // ---------------------------------------------------------------------------
 
@@ -470,6 +619,30 @@ function HeadlessPricingConfigSection() {
           spellCheck={false}
         />
       </label>
+      <label className={local.field}>
+        <span className={local.fieldLabelRow}>
+          <span className={local.fieldLabel}>quoteStartDate</span>
+          <span className={local.fieldLabelHelp}>Used as StartDate on QuoteLineItems — defaults to today if blank</span>
+        </span>
+        <input
+          type="date"
+          className={local.textInput}
+          value={local_.quoteStartDate}
+          onChange={(e) => field('quoteStartDate', e.target.value)}
+        />
+      </label>
+      <label className={local.field}>
+        <span className={local.fieldLabelRow}>
+          <span className={local.fieldLabel}>quoteEndDate</span>
+          <span className={local.fieldLabelHelp}>Used as EndDate on QuoteLineItems — defaults to start date + 1 year if blank</span>
+        </span>
+        <input
+          type="date"
+          className={local.textInput}
+          value={local_.quoteEndDate}
+          onChange={(e) => field('quoteEndDate', e.target.value)}
+        />
+      </label>
 
       <div className={local.checkboxGrid}>
         {(
@@ -506,11 +679,162 @@ function HeadlessPricingConfigSection() {
 }
 
 // ---------------------------------------------------------------------------
+// PstTestSection
+// ---------------------------------------------------------------------------
+
+function PstTestSection({ isConnected }: { isConnected: boolean }) {
+  const { orgInfo } = useSalesforceConfig()
+  const { config } = useHeadlessPricingConfig()
+  const [productId, setProductId] = useState('')
+  const [status, setStatus] = useState<'idle' | 'loading' | 'ok' | 'err'>('idle')
+  const [requestBody, setRequestBody] = useState<string | null>(null)
+  const [responseBody, setResponseBody] = useState<string | null>(null)
+
+  async function runTest() {
+    if (!productId.trim() || !config.pricebookId.trim()) return
+    setStatus('loading')
+    setRequestBody(null)
+    setResponseBody(null)
+
+    const apiVersion = orgInfo.apiVersion || '62.0'
+    const today = new Date().toISOString().split('T')[0]
+    const startDate = config.quoteStartDate.trim() || today
+    const endDate = config.quoteEndDate.trim() || (() => {
+      const d = new Date(startDate)
+      d.setFullYear(d.getFullYear() + 1)
+      return d.toISOString().split('T')[0]
+    })()
+
+    try {
+      const soql =
+        `SELECT Id, Product2Id FROM PricebookEntry ` +
+        `WHERE Product2Id = '${productId.trim()}' AND Pricebook2Id = '${config.pricebookId.trim()}' AND IsActive = true`
+      const pbRes = await fetch(`/api/salesforce/services/data/v${apiVersion}/query?q=${encodeURIComponent(soql)}`)
+      const pbData = (await pbRes.json()) as { records?: { Id: string }[] }
+      const pricebookEntryId = pbData.records?.[0]?.Id
+      if (!pricebookEntryId) {
+        throw new Error(
+          `No active PricebookEntry found.\n\nPricebookEntry query response:\n${JSON.stringify(pbData, null, 2)}`,
+        )
+      }
+
+      const body = {
+        pricingPref: 'Force',
+        taxPref: 'Skip',
+        graph: {
+          graphId: 'testQuote',
+          records: [
+            {
+              referenceId: 'refQuote',
+              record: {
+                attributes: { type: 'Quote', method: 'POST' },
+                Name: `[PST Test] ${today}`,
+                Pricebook2Id: config.pricebookId.trim(),
+              },
+            },
+            {
+              referenceId: 'refLine0',
+              record: {
+                attributes: { type: 'QuoteLineItem', method: 'POST' },
+                QuoteId: '@{refQuote.id}',
+                Product2Id: productId.trim(),
+                PricebookEntryId: pricebookEntryId,
+                Quantity: 1,
+                StartDate: startDate,
+                EndDate: endDate,
+              },
+            },
+          ],
+        },
+      }
+      setRequestBody(JSON.stringify(body, null, 2))
+
+      const pstRes = await fetch(
+        `/api/salesforce/services/data/v${apiVersion}/connect/rev/sales-transaction/actions/place`,
+        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) },
+      )
+      const pstData = (await pstRes.json()) as unknown
+      setResponseBody(JSON.stringify(pstData, null, 2))
+      setStatus((pstData as Record<string, unknown>)?.isSuccess === true ? 'ok' : 'err')
+    } catch (e) {
+      setResponseBody((e as Error).message)
+      setStatus('err')
+    }
+  }
+
+  return (
+    <div className={local.card}>
+      <div className={local.configCardHeader}>
+        <p className={local.cardTitle}>PST API Test</p>
+        {status === 'ok' && (
+          <span className={local.badgeOk}>
+            <CheckCircle size={12} /> isSuccess: true
+          </span>
+        )}
+        {status === 'err' && (
+          <span style={{ fontSize: 12, color: '#b91c1c', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+            <XCircle size={12} /> Failed
+          </span>
+        )}
+      </div>
+      <p className={styles.muted}>
+        Fire a minimal Place Sales Transaction (1 Quote + 1 line item) using the current Headless Pricing
+        Config. Reads pricebookId, quoteStartDate, and quoteEndDate from the section above.
+      </p>
+      {!isConnected && (
+        <div className={local.oauthError}>Connect to Salesforce before running a test.</div>
+      )}
+      {isConnected && !config.pricebookId.trim() && (
+        <div className={local.oauthError}>Set Pricebook ID in Headless Pricing Config above before testing.</div>
+      )}
+      <label className={local.field}>
+        <span className={local.fieldLabel}>Test Product2 ID</span>
+        <input
+          className={local.textInput}
+          value={productId}
+          onChange={(e) => setProductId(e.target.value)}
+          placeholder="01t…"
+          autoComplete="off"
+          spellCheck={false}
+          disabled={status === 'loading'}
+        />
+      </label>
+      <div className={local.formActions}>
+        <button
+          type="button"
+          className={local.runBtn}
+          disabled={!isConnected || !productId.trim() || !config.pricebookId.trim() || status === 'loading'}
+          onClick={() => { void runTest() }}
+        >
+          {status === 'loading' ? (
+            <><RefreshCw size={13} className={local.spin} /> Running…</>
+          ) : (
+            'Run PST Test'
+          )}
+        </button>
+      </div>
+      {requestBody && (
+        <>
+          <p className={local.formSectionLabel}>Request Body</p>
+          <pre className={local.preBlock}>{requestBody}</pre>
+        </>
+      )}
+      {responseBody && (
+        <>
+          <p className={local.formSectionLabel}>Response</p>
+          <pre className={status === 'ok' ? local.preBlockOk : local.preBlockErr}>{responseBody}</pre>
+        </>
+      )}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
 
 export function AdminSalesforcePage() {
-  const { refresh, loading } = useSalesforceConfig()
+  const { refresh, loading, isOAuthConnected } = useSalesforceConfig()
 
   return (
     <div className={styles.wrap}>
@@ -529,7 +853,11 @@ export function AdminSalesforcePage() {
 
       <SalesforceConnectSection />
 
+      <ActiveAccountSection isConnected={isOAuthConnected} />
+
       <HeadlessPricingConfigSection />
+
+      <PstTestSection isConnected={isOAuthConnected} />
     </div>
   )
 }

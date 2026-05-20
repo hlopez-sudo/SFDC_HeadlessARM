@@ -5,6 +5,7 @@ import { CatalogProvider } from './catalog/CatalogContext'
 import { SiteBrandingProvider } from './branding/SiteBrandingContext'
 import { SalesforceConfigProvider } from './salesforce/SalesforceConfigContext'
 import { HeadlessPricingConfigProvider } from './salesforce/HeadlessPricingConfigContext'
+import { QuoteCartProvider } from './quote/QuoteCartContext'
 import './index.css'
 import App from './App.tsx'
 
@@ -14,9 +15,11 @@ createRoot(document.getElementById('root')!).render(
       <CatalogProvider>
         <SalesforceConfigProvider>
           <HeadlessPricingConfigProvider>
-            <BrowserRouter>
-              <App />
-            </BrowserRouter>
+            <QuoteCartProvider>
+              <BrowserRouter>
+                <App />
+              </BrowserRouter>
+            </QuoteCartProvider>
           </HeadlessPricingConfigProvider>
         </SalesforceConfigProvider>
       </CatalogProvider>

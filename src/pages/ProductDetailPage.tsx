@@ -4,11 +4,12 @@ import { ProductImageGallery } from '../components/products/detail/ProductImageG
 import { SalesforcePricingPanel } from '../components/products/detail/SalesforcePricingPanel'
 import { AppBreadcrumbs } from '../components/navigation/AppBreadcrumbs'
 import { modelDetailsBySlug } from '../data/product-models'
-import { useCatalog } from '../catalog/CatalogContext'
+import { useProductById } from '../hooks/useProductById'
 import { useSalesforcePricing } from '../hooks/useSalesforcePricing'
-import { useProductSellingModels } from '../hooks/useProductSellingModels'
+import { useProductSellingModelOptions } from '../hooks/useProductSellingModelOptions'
 import { useHeadlessPricingConfig } from '../salesforce/HeadlessPricingConfigContext'
 import { buildHeadlessPricingData } from '../salesforce/buildHeadlessPricingData'
+import { useQuoteCart } from '../quote/QuoteCartContext'
 import styles from './ProductDetailPage.module.css'
 
 const MAX_QTY = 99
@@ -35,13 +36,13 @@ export function ProductDetailPage() {
   const [committedQuantity, setCommittedQuantity] = useState(1)
   const [sellingModel, setSellingModel] = useState('')
 
-  const { catalog } = useCatalog()
-  const catalogProduct = catalog.products.find((p) => p.id === productSlug)
+  const productResult = useProductById(productSlug)
+  const catalogProduct = productResult.status === 'found' ? productResult.product : undefined
 
   // Supplemental hardcoded data for the two original products
   const detail = modelDetailsBySlug[productSlug]
 
-  const sellingModels = useProductSellingModels()
+  const sellingModels = useProductSellingModelOptions(catalogProduct?.sfProductId ?? '')
   const selectedSellingModelId = sellingModels.find((m) => m.name === sellingModel)?.id
 
   useEffect(() => {
@@ -51,6 +52,7 @@ export function ProductDetailPage() {
   }, [sellingModels])
 
   const { config: headlessConfig, isComplete: headlessComplete } = useHeadlessPricingConfig()
+  const { addItem, openModal } = useQuoteCart()
 
   const pricing = useSalesforcePricing(
     catalogProduct?.sfProductId ?? '',
@@ -97,6 +99,11 @@ export function ProductDetailPage() {
     selectedSellingModelId,
   ])
 
+  const showStartTrial = useMemo(() => {
+    const lower = sellingModel.toLowerCase()
+    return lower.includes('monthly') || lower.includes('evergreen')
+  }, [sellingModel])
+
   const unitPriceDisplay = useMemo(() => {
     if (pricing.status === 'ok') {
       return formatMoney(pricing.record.netUnitPrice, pricing.record.currencyIsoCode)
@@ -111,6 +118,9 @@ export function ProductDetailPage() {
     return priceFormatter.format((detail?.unitPriceUsd ?? 0) * quantity)
   }, [pricing, detail, quantity])
 
+  if (productResult.status === 'loading') {
+    return <div className={styles.wrap}><p>Loading…</p></div>
+  }
   if (!catalogProduct) {
     return <Navigate to="/" replace />
   }
@@ -265,6 +275,44 @@ export function ProductDetailPage() {
               </div>
             </div>
           </div>
+
+          <div className={styles.actionRow}>
+              {showStartTrial && (
+                <button
+                  type="button"
+                  className={styles.btnOutline}
+                  onClick={() => console.log('Start Trial', catalogProduct.name, sellingModel)}
+                >
+                  Start Trial
+                </button>
+              )}
+              <button
+                type="button"
+                className={styles.btnPrimary}
+                onClick={() => console.log('Buy Now', catalogProduct.name, sellingModel)}
+              >
+                Buy Now
+              </button>
+              <button
+                type="button"
+                className={styles.btnOutline}
+                onClick={() => {
+                  addItem({
+                    productId: catalogProduct.sfProductId,
+                    productName: catalogProduct.name,
+                    quantity: committedQuantity,
+                    sellingModel,
+                    sellingModelId: selectedSellingModelId,
+                    unitPrice: pricing.status === 'ok' ? pricing.record.netUnitPrice : 0,
+                    lineTotal: pricing.status === 'ok' ? pricing.record.subtotal : 0,
+                    currencyIsoCode: pricing.status === 'ok' ? pricing.record.currencyIsoCode : 'USD',
+                  })
+                  openModal()
+                }}
+              >
+                Add to Quote
+              </button>
+            </div>
 
           <SalesforcePricingPanel pricing={pricing} requestPayload={requestPayload} />
         </aside>

@@ -7,6 +7,7 @@ import { AdminSalesforcePage } from './pages/AdminSalesforcePage'
 import { ProductDetailPage } from './pages/ProductDetailPage'
 import { ProductsPage } from './pages/ProductsPage'
 import { DashboardPage } from './pages/DashboardPage'
+import { QuotesPage } from './pages/QuotesPage'
 
 function App() {
   return (
@@ -14,6 +15,7 @@ function App() {
       <Routes>
         <Route path="/" element={<ProductsPage />} />
         <Route path="/dashboard" element={<DashboardPage />} />
+        <Route path="/quotes" element={<QuotesPage />} />
         <Route path="/admin/readme" element={<AdminReadmePage />} />
         <Route path="/admin" element={<AdminGeneralPage />} />
         <Route path="/admin/salesforce" element={<AdminSalesforcePage />} />
