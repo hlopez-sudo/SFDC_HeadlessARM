@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import { ChevronDown, ChevronRight, LayoutDashboard, Package, Settings } from 'lucide-react'
+import { useQuoteCart } from '../../quote/QuoteCartContext'
 import styles from './Sidebar.module.css'
 
 export function Sidebar() {
   const { pathname } = useLocation()
+  const { items } = useQuoteCart()
   const productsPath = pathname === '/' || pathname.startsWith('/products')
   const onAdminPath = pathname === '/admin' || pathname.startsWith('/admin/')
   const [administrationOpen, setAdministrationOpen] = useState(onAdminPath)
@@ -41,6 +43,20 @@ export function Sidebar() {
             </span>
             Products
           </NavLink>
+
+          <div className={styles.subList}>
+            <NavLink
+              to="/quotes"
+              className={({ isActive }) =>
+                `${styles.subItem} ${isActive ? styles.subItemActive : ''}`
+              }
+            >
+              Quotes
+              {items.length > 0 && (
+                <span className={styles.cartBadge}>{items.length}</span>
+              )}
+            </NavLink>
+          </div>
 
           <button
             type="button"

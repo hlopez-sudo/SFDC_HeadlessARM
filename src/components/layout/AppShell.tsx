@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { TopNav } from '../navigation/TopNav'
 import { Sidebar } from '../navigation/Sidebar'
+import { QuoteCartModal } from '../quote/QuoteCartModal'
 import styles from './AppShell.module.css'
 
 type AppShellProps = {
@@ -15,6 +16,7 @@ export function AppShell({ children }: AppShellProps) {
         <Sidebar />
         <main className={styles.main}>{children}</main>
       </div>
+      <QuoteCartModal />
     </div>
   )
 }

@@ -1,12 +1,16 @@
 import { useCallback, useEffect, useMemo, useState, type ChangeEvent } from 'react'
 import { useCatalog } from '../catalog/CatalogContext'
-import type { CatalogProduct, ProductCatalog, SellingModelEntry } from '../catalog/types'
+import type { CatalogProduct, ProductCatalog, ProductCategoryEntry, SellingModelEntry } from '../catalog/types'
 import { useSalesforceConfig } from '../salesforce/SalesforceConfigContext'
 import { SalesforceLookupInput } from '../components/salesforce/SalesforceLookupInput'
 import styles from './AdminProductCatalogPage.module.css'
 
 function newRow(): CatalogProduct {
   return { id: crypto.randomUUID(), name: '', family: '', description: '', sfProductId: '', imageUrl: 'https://www.salesforce.com/news/wp-content/uploads/sites/3/2021/05/Salesforce-logo.jpg?w=2048&h=1152' }
+}
+
+function newProductCategoryRow(): ProductCategoryEntry {
+  return { id: crypto.randomUUID(), displayName: '', sfId: '' }
 }
 
 function newSellingModelRow(): SellingModelEntry {
@@ -117,6 +121,41 @@ const setHeader = useCallback((e: ChangeEvent<HTMLInputElement>) => {
     setDraft((prev) => ({ ...prev, sellingModels: [...prev.sellingModels, newSellingModelRow()] }))
   }, [])
 
+  const updateProductCategory = useCallback(
+    (idx: number, field: keyof ProductCategoryEntry, value: string) => {
+      setDraft((prev) => {
+        const productCategories = prev.productCategories.map((c, i) =>
+          i === idx ? { ...c, [field]: value } : c,
+        )
+        return { ...prev, productCategories }
+      })
+    },
+    [],
+  )
+
+  const selectProductCategoryOption = useCallback(
+    (idx: number, rec: Record<string, unknown>) => {
+      setDraft((prev) => {
+        const productCategories = prev.productCategories.map((c, i) =>
+          i === idx ? { ...c, sfId: (rec['Id'] as string) ?? c.sfId } : c,
+        )
+        return { ...prev, productCategories }
+      })
+    },
+    [],
+  )
+
+  const deleteProductCategory = useCallback((idx: number) => {
+    setDraft((prev) => ({
+      ...prev,
+      productCategories: prev.productCategories.filter((_, i) => i !== idx),
+    }))
+  }, [])
+
+  const addProductCategory = useCallback(() => {
+    setDraft((prev) => ({ ...prev, productCategories: [...prev.productCategories, newProductCategoryRow()] }))
+  }, [])
+
   return (
     <div className={styles.wrap}>
       <h1 className={styles.title}>Product Catalog</h1>
@@ -162,7 +201,66 @@ const setHeader = useCallback((e: ChangeEvent<HTMLInputElement>) => {
       </fieldset>
 
       <fieldset className={styles.section}>
-        <legend className={styles.sectionTitle}>Product Selling Models</legend>
+        <legend className={styles.sectionTitle}>Product Category</legend>
+        <div className={styles.tableWrap}>
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th className={styles.colDisplayName}>Display Name</th>
+                <th className={styles.colSfModelId}>ID</th>
+                <th className={styles.colDel}></th>
+              </tr>
+            </thead>
+            <tbody>
+              {draft.productCategories.map((cat, idx) => (
+                <tr key={cat.id}>
+                  <td className={styles.colDisplayName}>
+                    <SalesforceLookupInput
+                      value={cat.displayName}
+                      onChange={(v) => updateProductCategory(idx, 'displayName', v)}
+                      onSelect={(rec) => selectProductCategoryOption(idx, rec)}
+                      sObject="ProductCategory"
+                      queryFields={['Id', 'Name']}
+                      searchFields={['Name']}
+                      valueField="Name"
+                      displayField="Name"
+                      subLabelField="Id"
+                      orderBy="Name ASC"
+                      placeholder="e.g. Hardware"
+                      apiVersion={apiVersion}
+                    />
+                  </td>
+                  <td className={styles.colSfModelId}>
+                    <input
+                      className={styles.cellInput}
+                      type="text"
+                      value={cat.sfId}
+                      onChange={(e) => updateProductCategory(idx, 'sfId', e.target.value)}
+                      placeholder="Salesforce ID"
+                    />
+                  </td>
+                  <td className={styles.colDel}>
+                    <button
+                      type="button"
+                      className={styles.btnIcon}
+                      aria-label={`Delete ${cat.displayName || 'row'}`}
+                      onClick={() => deleteProductCategory(idx)}
+                    >
+                      ×
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <button type="button" className={styles.addRow} onClick={addProductCategory}>
+          + Add row
+        </button>
+      </fieldset>
+
+      <fieldset className={styles.section}>
+        <legend className={styles.sectionTitle}>Product Selling Models — Deprecated: Options are now dynamically populated on the Product Detail page by querying: SELECT Id, Product2.Name, Product2Id, ProductSellingModel.Name, ProductSellingModelId FROM ProductSellingModelOption WHERE Product2Id = &#123;Product2Id&#125;</legend>
         <div className={styles.tableWrap}>
           <table className={styles.table}>
             <thead>
@@ -221,7 +319,7 @@ const setHeader = useCallback((e: ChangeEvent<HTMLInputElement>) => {
       </fieldset>
 
       <fieldset className={styles.section}>
-        <legend className={styles.sectionTitle}>Products</legend>
+        <legend className={styles.sectionTitle}>Products — Deprecated: Products are now dynamically populated on the Product Search page based on the Category selected by querying: SELECT ProductCategoryId, ProductId, Product.Name, Product.DisplayUrl FROM ProductCategoryProduct WHERE ProductCategoryId = &#123;ProductCategoryId&#125;</legend>
         <div className={styles.tableWrap}>
           <table className={styles.table}>
             <thead>

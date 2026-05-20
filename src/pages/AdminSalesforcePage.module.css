@@ -358,3 +358,31 @@
   text-decoration: underline;
   cursor: pointer;
 }
+
+.preBlock {
+  margin: 0;
+  padding: 10px 12px;
+  background: var(--fc-page-bg);
+  border: 1px solid var(--fc-border);
+  border-radius: var(--fc-radius-sm);
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--fc-text);
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.preBlockOk {
+  composes: preBlock;
+  border-color: #6ee7b7;
+  background: #f0fdf4;
+}
+
+.preBlockErr {
+  composes: preBlock;
+  border-color: #fca5a5;
+  background: #fff0f0;
+}
