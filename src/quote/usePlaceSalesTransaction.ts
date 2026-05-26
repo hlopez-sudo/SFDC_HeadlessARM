@@ -30,9 +30,19 @@ export type SubmitState = {
   status: 'idle' | 'loading' | 'success' | 'error'
   quoteId: string | null
   error: string | null
+  apiResponse: unknown | null
+  requestUrl: string | null
+  requestBody: unknown | null
 }
 
-const IDLE: SubmitState = { status: 'idle', quoteId: null, error: null }
+const IDLE: SubmitState = {
+  status: 'idle',
+  quoteId: null,
+  error: null,
+  apiResponse: null,
+  requestUrl: null,
+  requestBody: null,
+}
 
 export function usePlaceSalesTransaction() {
   const { orgInfo } = useSalesforceConfig()
@@ -82,19 +92,21 @@ export function usePlaceSalesTransaction() {
         for (const r of pbData.records ?? []) {
           entryMap.set(r.Product2Id, r.Id)
         }
+        console.log('[PST] PricebookEntry map:', Object.fromEntries(entryMap))
 
         // Step 2: build the PST graph
         const today = new Date().toISOString().split('T')[0]
+        const dateTime = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)
         const autoName = account?.accountName
-          ? `Quote - ${account.accountName} - ${today}`
-          : `Quote - ${today}`
+          ? `HeadlessQuote_${account.accountName}_${dateTime}`
+          : `HeadlessQuote_${dateTime}`
 
         const quoteRecord: Record<string, unknown> = {
           attributes: { type: 'Quote', method: 'POST' },
           Name: quoteName?.trim() || autoName,
+          ...(account?.accountId ? { QuoteAccountId: account.accountId } : {}),
           Pricebook2Id: config.pricebookId.trim(),
         }
-        // AccountId omitted — not writable on Quote for this org's permission set
 
         const records: unknown[] = [{ referenceId: 'refQuote', record: quoteRecord }]
 
@@ -112,49 +124,58 @@ export function usePlaceSalesTransaction() {
           const pricebookEntryId = entryMap.get(item.productId)
           if (!pricebookEntryId) continue // skip products not in the pricebook
 
+          const smFields = item.sellingModel ? deriveSellingModelFields(item.sellingModel) : {}
           const lineRecord: Record<string, unknown> = {
             attributes: { type: 'QuoteLineItem', method: 'POST' },
             QuoteId: '@{refQuote.id}',
             Product2Id: item.productId,
             PricebookEntryId: pricebookEntryId,
+            ...smFields,
             Quantity: item.quantity,
             StartDate: startDate,
             EndDate: endDate,
-            // UnitPrice omitted — Force pricing looks it up from the Pricebook
+            PeriodBoundary: 'Anniversary',
           }
-          if (item.sellingModelId) lineRecord.ProductSellingModelId = item.sellingModelId
 
           records.push({ referenceId: `refQuoteLine${lineIndex}`, record: lineRecord })
           lineIndex++
         }
 
         if (lineIndex === 0) {
+          console.error('[PST] No PricebookEntries matched cart products.', {
+            requestedProductIds: productIds,
+            pricebookId: config.pricebookId.trim(),
+            pricebookEntryMap: Object.fromEntries(entryMap),
+          })
           throw new Error(
             'None of the cart products were found in the configured pricebook. Check the Pricebook ID in Admin → Salesforce.',
           )
         }
 
         const body: Record<string, unknown> = {
-          pricingPref: 'Force',  // let Salesforce price from the Pricebook
+          pricingPref: 'Force',
           taxPref: 'Skip',
           graph: { graphId: 'createQuote', records },
-          // contextDetails omitted — not needed when graph is provided;
-          // contextMappingId is a record ID, not a session UUID
         }
 
         // Step 3: POST to Place Sales Transaction API
-        const pstRes = await fetch(
-          `/api/salesforce/services/data/v${apiVersion}/connect/rev/sales-transaction/actions/place`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body),
-          },
-        )
+        const pstUrl =
+          `/api/salesforce/services/data/v${apiVersion}/connect/rev/sales-transaction/actions/place`
+        console.log('[PST] Request URL:', pstUrl)
+        console.log('[PST] Request body:', JSON.stringify(body, null, 2))
+
+        const pstRes = await fetch(pstUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        })
+
+        console.log('[PST] Response status:', pstRes.status)
 
         const pstData = (await pstRes.json()) as unknown
 
         if (!pstRes.ok) {
+          console.error('[PST] Response headers:', Object.fromEntries(pstRes.headers))
           console.error('[PST] Error response body:', JSON.stringify(pstData, null, 2))
           let msg = `Request failed: HTTP ${pstRes.status}`
           if (Array.isArray(pstData) && (pstData[0] as { message?: string })?.message) {
@@ -169,9 +190,11 @@ export function usePlaceSalesTransaction() {
           throw new Error(msg)
         }
 
+        console.log('[PST] Response body:', JSON.stringify(pstData, null, 2))
+
         // Step 4: extract Quote ID from composite graph response
         const quoteId = extractQuoteId(pstData)
-        setState({ status: 'success', quoteId, error: null })
+        setState({ status: 'success', quoteId, error: null, apiResponse: pstData, requestUrl: pstUrl, requestBody: body })
       } catch (e: unknown) {
         setState({
           status: 'error',
@@ -186,6 +209,25 @@ export function usePlaceSalesTransaction() {
   const reset = useCallback(() => setState(IDLE), [])
 
   return { submit, state, reset }
+}
+
+function deriveSellingModelFields(name: string): Record<string, string> {
+  const lower = name.toLowerCase()
+  if (lower.includes('one time') || lower.includes('onetime')) {
+    return { SellingModelType: 'OneTime' }
+  }
+  const fields: Record<string, string> = {}
+  if (lower.includes('term')) fields.SellingModelType = 'TermDefined'
+  // if (lower.includes('monthly')) {
+  //   fields.BillingFrequency = 'Monthly'
+  //   fields.PricingTermUnit = 'Months'
+  //   fields.SubscriptionTermUnit = 'Months'
+  // } else if (lower.includes('annual')) {
+  //   fields.BillingFrequency = 'Annual'
+  //   fields.PricingTermUnit = 'Annual'
+  //   fields.SubscriptionTermUnit = 'Annual'
+  // }
+  return fields
 }
 
 function extractQuoteId(data: unknown): string | null {

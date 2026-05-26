@@ -473,7 +473,7 @@ function sfConfigPlugin(fallbackApiVersion: string): Plugin {
         }
 
         const headers: http.OutgoingHttpHeaders = {}
-        const skipHeaders = new Set(['host', 'connection', 'authorization'])
+        const skipHeaders = new Set(['host', 'connection', 'authorization', 'accept-encoding'])
         for (const [k, v] of Object.entries(req.headers)) {
           if (!skipHeaders.has(k.toLowerCase())) headers[k] = v
         }
@@ -494,11 +494,16 @@ function sfConfigPlugin(fallbackApiVersion: string): Plugin {
             if (k.toLowerCase() !== 'transfer-encoding') resHeaders[k] = v
           }
           if (sfRes.statusCode !== 200) {
-            let body = ''
-            sfRes.on('data', (chunk: Buffer) => { body += chunk.toString() })
+            const chunks: Buffer[] = []
+            sfRes.on('data', (chunk: Buffer) => { chunks.push(chunk) })
+            sfRes.on('error', (err) => {
+              if (!res.headersSent) res.writeHead(502)
+              res.end()
+              console.error('[sf-proxy] sfRes stream error:', err.message)
+            })
             sfRes.on('end', () => {
               res.writeHead(sfRes.statusCode ?? 502, resHeaders)
-              res.end(body)
+              res.end(Buffer.concat(chunks))
             })
           } else {
             res.writeHead(200, resHeaders)

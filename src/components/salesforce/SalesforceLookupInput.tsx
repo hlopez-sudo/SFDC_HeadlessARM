@@ -17,7 +17,7 @@ function getField(rec: LookupRecord, path: string): string {
 
 interface MetaField {
   label: string
-  field: string  // dot-notation path into the selected record
+  field: string
 }
 
 interface SalesforceLookupInputProps {
@@ -34,8 +34,8 @@ interface SalesforceLookupInputProps {
   extraWhere?: string
   placeholder?: string
   apiVersion: string
-  metaFields?: MetaField[]        // which fields to display below the input
-  metaValues?: Record<string, string>  // controlled: persisted values from parent
+  metaFields?: MetaField[]
+  metaValues?: Record<string, string>
 }
 
 export function SalesforceLookupInput({
@@ -56,16 +56,28 @@ export function SalesforceLookupInput({
   metaValues,
 }: SalesforceLookupInputProps) {
   const [open, setOpen] = useState(false)
-  const [searchTerm, setSearchTerm] = useState('')
+  // Text shown in the main input; doubles as the live search query when open
+  const [inputText, setInputText] = useState(value)
+  // The friendly display name of the last confirmed selection
+  const [selectedDisplay, setSelectedDisplay] = useState('')
   const [records, setRecords] = useState<LookupRecord[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0, width: 0 })
 
   const containerRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
   const inputRowRef = useRef<HTMLDivElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
-  const searchInputRef = useRef<HTMLInputElement>(null)
+
+  // When value changes externally and we are not in an open search session,
+  // reset the display back to the raw value (e.g. on form load / clear)
+  useEffect(() => {
+    if (!open) {
+      setInputText(value)
+      if (!value) setSelectedDisplay('')
+    }
+  }, [value, open])
 
   function buildSoql(term: string): string {
     const cols = queryFields.join(', ')
@@ -80,16 +92,16 @@ export function SalesforceLookupInput({
       .join(' ')
   }
 
-  // Fetch records when open or searchTerm changes
+  // Fetch records when open or inputText changes
   useEffect(() => {
     if (!open) return
     setLoading(true)
     setError(null)
     let cancelled = false
-    const delay = searchTerm === '' ? 0 : 300
+    const delay = inputText === '' ? 0 : 300
     const timer = setTimeout(async () => {
       try {
-        const soql = buildSoql(searchTerm)
+        const soql = buildSoql(inputText)
         const res = await fetch(
           `/api/salesforce/services/data/v${apiVersion}/query?q=${encodeURIComponent(soql)}`
         )
@@ -118,18 +130,13 @@ export function SalesforceLookupInput({
       clearTimeout(timer)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchTerm, open, apiVersion, sObject])
+  }, [inputText, open, apiVersion, sObject])
 
-  // Calculate dropdown position anchored to the input row
+  // Position the dropdown below the input row
   useLayoutEffect(() => {
     if (!open || !inputRowRef.current) return
     const rect = inputRowRef.current.getBoundingClientRect()
     setDropdownPos({ top: rect.bottom + 2, left: rect.left, width: rect.width })
-  }, [open])
-
-  // Auto-focus search input when dropdown opens
-  useEffect(() => {
-    if (open) searchInputRef.current?.focus()
   }, [open])
 
   // Close on scroll outside the dropdown
@@ -137,7 +144,7 @@ export function SalesforceLookupInput({
     if (!open) return
     function handleScroll(e: Event) {
       if (dropdownRef.current?.contains(e.target as Node)) return
-      setOpen(false)
+      closeDropdown()
     }
     window.addEventListener('scroll', handleScroll, true)
     return () => window.removeEventListener('scroll', handleScroll, true)
@@ -149,28 +156,48 @@ export function SalesforceLookupInput({
     function handlePointerDown(e: PointerEvent) {
       const target = e.target as Node
       if (containerRef.current?.contains(target) || dropdownRef.current?.contains(target)) return
-      setOpen(false)
+      closeDropdown()
     }
     document.addEventListener('pointerdown', handlePointerDown)
     return () => document.removeEventListener('pointerdown', handlePointerDown)
   }, [open])
 
-  function openDropdown() {
-    setSearchTerm('')
+  function closeDropdown() {
+    setOpen(false)
+    // Revert the input to the last good display/value
+    setInputText(selectedDisplay || value)
+  }
+
+  function handleInputFocus() {
+    // Clear the input so the user can type a fresh search query;
+    // empty search loads all records immediately
+    setInputText('')
     setRecords([])
     setError(null)
     setOpen(true)
   }
 
-  function selectRecord(record: LookupRecord) {
-    onChange(getField(record, valueField))
-    onSelect?.(record)
-    setOpen(false)
-    setSearchTerm('')
+  function handleInputChange(e: React.ChangeEvent<HTMLInputElement>) {
+    setInputText(e.target.value)
+    if (!open) setOpen(true)
   }
 
-  function handleSearchKeyDown(e: React.KeyboardEvent) {
-    if (e.key === 'Escape') setOpen(false)
+  function handleInputKeyDown(e: React.KeyboardEvent) {
+    if (e.key === 'Escape') {
+      e.stopPropagation()
+      closeDropdown()
+      inputRef.current?.blur()
+    }
+  }
+
+  function selectRecord(record: LookupRecord) {
+    const val = getField(record, valueField)
+    const display = getField(record, displayField)
+    onChange(val)
+    onSelect?.(record)
+    setSelectedDisplay(display || val)
+    setInputText(display || val)
+    setOpen(false)
   }
 
   const dropdown = open ? createPortal(
@@ -180,20 +207,6 @@ export function SalesforceLookupInput({
       style={{ position: 'fixed', top: dropdownPos.top, left: dropdownPos.left, width: dropdownPos.width }}
       role="listbox"
     >
-      <div className={styles.dropdownSearch}>
-        <Search size={12} className={styles.dropdownSearchIcon} />
-        <input
-          ref={searchInputRef}
-          className={styles.dropdownSearchInput}
-          value={searchTerm}
-          onChange={e => setSearchTerm(e.target.value)}
-          onKeyDown={handleSearchKeyDown}
-          placeholder={`Search ${sObject}…`}
-          autoComplete="off"
-          spellCheck={false}
-        />
-      </div>
-
       <div className={styles.results}>
         {loading && (
           <div className={styles.statusRow}>
@@ -229,19 +242,24 @@ export function SalesforceLookupInput({
     <div className={styles.root} ref={containerRef}>
       <div className={styles.inputRow} ref={inputRowRef}>
         <input
+          ref={inputRef}
           className={styles.textInput}
-          value={value}
-          onChange={e => onChange(e.target.value)}
-          placeholder={placeholder}
+          value={inputText}
+          onFocus={handleInputFocus}
+          onChange={handleInputChange}
+          onKeyDown={handleInputKeyDown}
+          placeholder={open ? `Search ${sObject}…` : (placeholder ?? '')}
           autoComplete="off"
           spellCheck={false}
+          aria-expanded={open}
+          aria-autocomplete="list"
         />
         <button
           type="button"
           className={styles.searchBtn}
-          onClick={openDropdown}
+          onClick={() => inputRef.current?.focus()}
+          tabIndex={-1}
           aria-label={`Browse ${sObject}`}
-          aria-expanded={open}
         >
           <Search size={14} />
         </button>

@@ -19,7 +19,7 @@ export const DEFAULT_LOGO_URL =
   'https://www.salesforce.com/news/wp-content/uploads/sites/3/2021/05/Salesforce-logo.jpg?w=2048&h=1152'
 
 export const DEFAULT_BRANDING: SiteBranding = {
-  siteName: 'My Commerce',
+  siteName: 'Headless360',
   logoMode: 'url',
   logoUrl: DEFAULT_LOGO_URL,
   logoDataUrl: '',

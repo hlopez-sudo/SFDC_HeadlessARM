@@ -765,7 +765,17 @@ function PstTestSection({ isConnected }: { isConnected: boolean }) {
   return (
     <div className={local.card}>
       <div className={local.configCardHeader}>
-        <p className={local.cardTitle}>PST API Test</p>
+        <p className={local.cardTitle}>
+          Test: Place SalesTransaction API{' '}
+          <a
+            href="https://developer.salesforce.com/docs/atlas.en-us.revenue_lifecycle_management_dev_guide.meta/revenue_lifecycle_management_dev_guide/connect_resources_place_sales_transaction.htm"
+            target="_blank"
+            rel="noreferrer"
+            className={local.link}
+          >
+            docs
+          </a>
+        </p>
         {status === 'ok' && (
           <span className={local.badgeOk}>
             <CheckCircle size={12} /> isSuccess: true

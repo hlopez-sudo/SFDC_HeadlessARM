@@ -42,7 +42,7 @@ export function applyBrandingToDocument(branding: SiteBranding): void {
     root.style.setProperty('--fc-border-light', mixRgb(highlightRgb, textRgb, 0.08))
   }
 
-  document.title = branding.siteName.trim() || 'My Commerce'
+  document.title = branding.siteName.trim() || 'Headless360'
 
   const faviconHref = branding.faviconUrl.trim() || DEFAULT_BRANDING.faviconUrl
   let iconLink = document.querySelector('link[rel="icon"]') as HTMLLinkElement | null

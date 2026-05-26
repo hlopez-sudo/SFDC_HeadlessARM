@@ -65,7 +65,7 @@ export function TopNav() {
         ) : (
           <LogoMark />
         )}
-        <span>{branding.siteName.trim() || 'My Commerce'}</span>
+        <span>{branding.siteName.trim() || 'Headless360'}</span>
       </a>
     </header>
   )
