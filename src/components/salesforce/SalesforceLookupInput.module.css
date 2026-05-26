@@ -66,30 +66,6 @@
   overflow: hidden;
 }
 
-.dropdownSearch {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 10px;
-  border-bottom: 1px solid var(--fc-border-light);
-  flex-shrink: 0;
-}
-
-.dropdownSearchIcon {
-  color: var(--fc-text-muted);
-  flex-shrink: 0;
-}
-
-.dropdownSearchInput {
-  flex: 1;
-  border: none;
-  outline: none;
-  background: transparent;
-  color: var(--fc-text);
-  font-size: 13px;
-  font-family: inherit;
-  padding: 0;
-}
 
 .results {
   overflow-y: auto;

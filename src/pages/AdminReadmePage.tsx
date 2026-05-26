@@ -16,6 +16,10 @@ export function AdminReadmePage() {
         <ol className={local.list}>
           <li>Log in to your org.</li>
           <li>
+            Select the Account to use. When Creating Quotes, Orders, etc., this Account will be
+            used.
+          </li>
+          <li>
             Populate the required fields using the lookup icon and corresponding help text for:{' '}
             <strong>ContextDefinitionId</strong>, <strong>ContextMappingId</strong>,{' '}
             <strong>PricingProcedureAPIName</strong>, and <strong>Pricebook</strong>.
@@ -27,16 +31,14 @@ export function AdminReadmePage() {
         <h2 id="readme-catalog-heading" className={local.sectionTitle}>
           Product Catalog
         </h2>
-        <ul className={local.list}>
-          <li>
-            Add values for Product Selling Model Options. Typically Term-Monthly, Term-Annual,
-            One-Time. These will vary based on your product configuration.
-          </li>
-          <li>
-            Add products directly from your connected org. These will add product tiles to the
-            Products navigation page.
-          </li>
-        </ul>
+        <p className={local.intro}>
+          Select the Product Categories you wish to display in the Product Search Page. Each
+          Category selected will display all Active Products within each Category.
+        </p>
+        <p className={local.intro}>
+          There is no need to select Product Selling Models or individual Products. This is
+          leftover in the UI but can be ignored.
+        </p>
       </section>
     </div>
   )
