@@ -2,6 +2,7 @@ import { useEffect, useId, useMemo, useState } from 'react'
 import { Navigate, useParams } from 'react-router-dom'
 import { ProductImageGallery } from '../components/products/detail/ProductImageGallery'
 import { SalesforcePricingPanel } from '../components/products/detail/SalesforcePricingPanel'
+import { TrialSummaryModal } from '../components/products/detail/TrialSummaryModal'
 import { AppBreadcrumbs } from '../components/navigation/AppBreadcrumbs'
 import { modelDetailsBySlug } from '../data/product-models'
 import { useProductById } from '../hooks/useProductById'
@@ -9,10 +10,12 @@ import { useSalesforcePricing } from '../hooks/useSalesforcePricing'
 import { useProductSellingModelOptions } from '../hooks/useProductSellingModelOptions'
 import { useHeadlessPricingConfig } from '../salesforce/HeadlessPricingConfigContext'
 import { buildHeadlessPricingData } from '../salesforce/buildHeadlessPricingData'
+import { useSalesforceConfig } from '../salesforce/SalesforceConfigContext'
 import { useQuoteCart } from '../quote/QuoteCartContext'
 import styles from './ProductDetailPage.module.css'
 
 const MAX_QTY = 99
+const DEFAULT_API_VERSION = '67.0'
 
 const priceFormatter = new Intl.NumberFormat('en-US', {
   style: 'currency',
@@ -35,6 +38,7 @@ export function ProductDetailPage() {
   const [qtyInput, setQtyInput] = useState('1')
   const [committedQuantity, setCommittedQuantity] = useState(1)
   const [sellingModel, setSellingModel] = useState('')
+  const [isTrialModalOpen, setIsTrialModalOpen] = useState(false)
 
   const productResult = useProductById(productSlug)
   const catalogProduct = productResult.status === 'found' ? productResult.product : undefined
@@ -52,7 +56,9 @@ export function ProductDetailPage() {
   }, [sellingModels])
 
   const { config: headlessConfig, isComplete: headlessComplete } = useHeadlessPricingConfig()
+  const { orgInfo } = useSalesforceConfig()
   const { addItem, openModal } = useQuoteCart()
+  const apiVersion = orgInfo.apiVersion || DEFAULT_API_VERSION
 
   const pricing = useSalesforcePricing(
     catalogProduct?.sfProductId ?? '',
@@ -99,9 +105,16 @@ export function ProductDetailPage() {
     selectedSellingModelId,
   ])
 
+  const apiEndpoint = useMemo(
+    () => `/api/salesforce/services/data/v${apiVersion}/actions/standard/runSalesforceHeadlessPricing`,
+    [apiVersion],
+  )
+
   const showStartTrial = useMemo(() => {
     const lower = sellingModel.toLowerCase()
-    return lower.includes('monthly') || lower.includes('evergreen')
+    const hasEligibleFamily = lower.includes('term') || lower.includes('evergreen')
+    const hasEligibleCadence = lower.includes('monthly') || lower.includes('annual')
+    return hasEligibleFamily && hasEligibleCadence
   }, [sellingModel])
 
   const unitPriceDisplay = useMemo(() => {
@@ -281,7 +294,7 @@ export function ProductDetailPage() {
                 <button
                   type="button"
                   className={styles.btnOutline}
-                  onClick={() => console.log('Start Trial', catalogProduct.name, sellingModel)}
+                  onClick={() => setIsTrialModalOpen(true)}
                 >
                   Start Trial
                 </button>
@@ -314,9 +327,33 @@ export function ProductDetailPage() {
               </button>
             </div>
 
-          <SalesforcePricingPanel pricing={pricing} requestPayload={requestPayload} />
+          <SalesforcePricingPanel
+            pricing={pricing}
+            requestPayload={requestPayload}
+            apiEndpoint={requestPayload ? apiEndpoint : undefined}
+          />
         </aside>
       </div>
+
+      {isTrialModalOpen && (
+        <TrialSummaryModal
+          productId={catalogProduct.sfProductId}
+          productName={catalogProduct.name}
+          sellingModel={sellingModel}
+          quantity={quantity}
+          accountName={(() => {
+            try {
+              const raw = localStorage.getItem('fc-active-account')
+              if (!raw) return null
+              const parsed = JSON.parse(raw) as { accountName?: string }
+              return parsed?.accountName ?? null
+            } catch {
+              return null
+            }
+          })()}
+          onClose={() => setIsTrialModalOpen(false)}
+        />
+      )}
     </div>
   )
 }

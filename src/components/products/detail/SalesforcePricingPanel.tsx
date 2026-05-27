@@ -28,9 +28,10 @@ function adjustmentLabel(step: WaterfallStep, fmt: Intl.NumberFormat): string {
 type Props = {
   pricing: SalesforcePricingState
   requestPayload?: Record<string, unknown>
+  apiEndpoint?: string
 }
 
-export function SalesforcePricingPanel({ pricing, requestPayload }: Props) {
+export function SalesforcePricingPanel({ pricing, requestPayload, apiEndpoint }: Props) {
   return (
     <section className={styles.panel} aria-label="Revenue Cloud Pricing API Response Details">
       <h3 className={styles.title}>Revenue Cloud Pricing API Response Details</h3>
@@ -168,6 +169,13 @@ export function SalesforcePricingPanel({ pricing, requestPayload }: Props) {
               <details className={styles.waterfallDetails}>
                 <summary className={styles.waterfallSummary}>API Request JSON</summary>
                 <div className={styles.headlessTableWrap}>
+                  {apiEndpoint && (
+                    <>
+                      <p className={styles.stepsHeading}>API Endpoint</p>
+                      <pre className={styles.rawPre}>{apiEndpoint}</pre>
+                    </>
+                  )}
+                  <p className={styles.stepsHeading}>Request Body</p>
                   <pre className={styles.rawPre}>{JSON.stringify(requestPayload, null, 2)}</pre>
                 </div>
               </details>
