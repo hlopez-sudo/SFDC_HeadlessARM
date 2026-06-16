@@ -1,6 +1,15 @@
-import { DEFAULT_BRANDING, type SiteBranding } from './types'
+import { DEFAULT_BRANDING, type PlgProductRef, type SiteBranding } from './types'
 
 const STORAGE_KEY = 'fc-site-branding'
+
+function isPlgProduct(v: unknown): v is PlgProductRef {
+  return (
+    typeof v === 'object' &&
+    v !== null &&
+    typeof (v as PlgProductRef).name === 'string' &&
+    typeof (v as PlgProductRef).id === 'string'
+  )
+}
 
 function parseStored(raw: string | null): SiteBranding | null {
   if (!raw) return null
@@ -33,6 +42,35 @@ function parseStored(raw: string | null): SiteBranding | null {
         background: colors.background,
         text: colors.text,
       },
+      enablePlg: typeof data.enablePlg === 'boolean' ? data.enablePlg : false,
+      plgTrialProduct: isPlgProduct(data.plgTrialProduct)
+        ? {
+            ...data.plgTrialProduct,
+            description: typeof data.plgTrialProduct.description === 'string' ? data.plgTrialProduct.description : '',
+            displayUrl:  typeof data.plgTrialProduct.displayUrl  === 'string' ? data.plgTrialProduct.displayUrl  : '',
+          }
+        : { name: '', id: '', description: '', displayUrl: '' },
+      plgBuyNowProduct: isPlgProduct(data.plgBuyNowProduct)
+        ? {
+            ...data.plgBuyNowProduct,
+            description: typeof data.plgBuyNowProduct.description === 'string' ? data.plgBuyNowProduct.description : '',
+            displayUrl:  typeof data.plgBuyNowProduct.displayUrl  === 'string' ? data.plgBuyNowProduct.displayUrl  : '',
+          }
+        : { name: '', id: '', description: '', displayUrl: '' },
+      plgEnterpriseProduct: isPlgProduct(data.plgEnterpriseProduct)
+        ? {
+            ...data.plgEnterpriseProduct,
+            description: typeof data.plgEnterpriseProduct.description === 'string' ? data.plgEnterpriseProduct.description : '',
+            displayUrl:  typeof data.plgEnterpriseProduct.displayUrl  === 'string' ? data.plgEnterpriseProduct.displayUrl  : '',
+          }
+        : { name: '', id: '', description: '', displayUrl: '' },
+      plgCustomProduct: isPlgProduct(data.plgCustomProduct)
+        ? {
+            ...data.plgCustomProduct,
+            description: typeof data.plgCustomProduct.description === 'string' ? data.plgCustomProduct.description : '',
+            displayUrl:  typeof data.plgCustomProduct.displayUrl  === 'string' ? data.plgCustomProduct.displayUrl  : '',
+          }
+        : { name: '', id: '', description: '', displayUrl: '' },
     }
   } catch {
     return null

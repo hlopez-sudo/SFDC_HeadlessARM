@@ -1,12 +1,15 @@
 import { useEffect, useState } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
-import { ChevronDown, ChevronRight, LayoutDashboard, Package, Settings } from 'lucide-react'
+import { ChevronDown, ChevronRight, LayoutDashboard, Package, Settings, UserPlus } from 'lucide-react'
 import { useQuoteCart } from '../../quote/QuoteCartContext'
+import { useSiteBranding } from '../../branding/SiteBrandingContext'
 import styles from './Sidebar.module.css'
 
 export function Sidebar() {
   const { pathname } = useLocation()
   const { items } = useQuoteCart()
+  const { branding } = useSiteBranding()
+  const plg = branding.enablePlg
   const productsPath = pathname === '/' || pathname.startsWith('/products')
   const onAdminPath = pathname === '/admin' || pathname.startsWith('/admin/')
   const [administrationOpen, setAdministrationOpen] = useState(onAdminPath)
@@ -29,34 +32,52 @@ export function Sidebar() {
             <span className={styles.iconWrap}>
               <LayoutDashboard size={18} strokeWidth={2} aria-hidden />
             </span>
-            Dashboard
+            My Account
           </NavLink>
 
-          <NavLink
-            to="/"
-            end
-            aria-current={productsPath ? 'page' : undefined}
-            className={() => `${styles.row} ${productsPath ? styles.rowActive : ''}`}
-          >
-            <span className={styles.iconWrap}>
-              <Package size={18} strokeWidth={2} aria-hidden />
-            </span>
-            Products
-          </NavLink>
+          {!plg && (
+            <>
+              <NavLink
+                to="/"
+                end
+                aria-current={productsPath ? 'page' : undefined}
+                className={() => `${styles.row} ${productsPath ? styles.rowActive : ''}`}
+              >
+                <span className={styles.iconWrap}>
+                  <Package size={18} strokeWidth={2} aria-hidden />
+                </span>
+                Products
+              </NavLink>
 
-          <div className={styles.subList}>
+              <div className={styles.subList}>
+                <NavLink
+                  to="/quotes"
+                  className={({ isActive }) =>
+                    `${styles.subItem} ${isActive ? styles.subItemActive : ''}`
+                  }
+                >
+                  Quotes
+                  {items.length > 0 && (
+                    <span className={styles.cartBadge}>{items.length}</span>
+                  )}
+                </NavLink>
+              </div>
+            </>
+          )}
+
+          {plg && (
             <NavLink
-              to="/quotes"
+              to="/signup-now"
               className={({ isActive }) =>
-                `${styles.subItem} ${isActive ? styles.subItemActive : ''}`
+                `${styles.row} ${isActive ? styles.rowActive : ''}`
               }
             >
-              Quotes
-              {items.length > 0 && (
-                <span className={styles.cartBadge}>{items.length}</span>
-              )}
+              <span className={styles.iconWrap}>
+                <UserPlus size={18} strokeWidth={2} aria-hidden />
+              </span>
+              Sign Up Now
             </NavLink>
-          </div>
+          )}
 
           <button
             type="button"
@@ -83,16 +104,7 @@ export function Sidebar() {
                   `${styles.subItem} ${isActive ? styles.subItemActive : ''}`
                 }
               >
-                README
-              </NavLink>
-              <NavLink
-                to="/admin"
-                end
-                className={({ isActive }) =>
-                  `${styles.subItem} ${isActive ? styles.subItemActive : ''}`
-                }
-              >
-                General
+                Read Me
               </NavLink>
               <NavLink
                 to="/admin/salesforce"
@@ -109,6 +121,15 @@ export function Sidebar() {
                 }
               >
                 Product Catalog
+              </NavLink>
+              <NavLink
+                to="/admin"
+                end
+                className={({ isActive }) =>
+                  `${styles.subItem} ${isActive ? styles.subItemActive : ''}`
+                }
+              >
+                General
               </NavLink>
             </div>
           )}

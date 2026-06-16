@@ -1,25 +1,19 @@
-import { useEffect } from 'react'
-import { useSalesforceConfig } from '../../../salesforce/SalesforceConfigContext'
-import { useStartTrial, type LifecycleStep } from '../../../quote/useStartTrial'
-import styles from './TrialSummaryModal.module.css'
-
-interface TrialSummaryModalProps {
-  productId: string
-  productName: string
-  sellingModel: string
-  quantity: number
-  accountName: string | null
-  onClose: () => void
-}
+import { useEffect, useRef } from 'react'
+import { useSalesforceConfig } from '../../salesforce/SalesforceConfigContext'
+import { useStartTrial, type LifecycleStep } from '../../quote/useStartTrial'
+import { useTrialDrawer } from '../../quote/TrialDrawerContext'
+import styles from './TrialDrawer.module.css'
 
 function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+  return new Date(iso).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  })
 }
 
 function StepIcon({ step }: { step: LifecycleStep }) {
-  if (step.status === 'running') {
-    return <span className={styles.stepIcon} aria-hidden />
-  }
+  if (step.status === 'running') return <span className={styles.stepIcon} aria-hidden />
   if (step.status === 'done') return <span className={styles.stepIcon}>✓</span>
   if (step.status === 'error') return <span className={styles.stepIcon}>✗</span>
   return <span className={styles.stepIcon}>·</span>
@@ -32,16 +26,23 @@ function stepItemClass(status: LifecycleStep['status']): string {
   return styles.stepItem
 }
 
-export function TrialSummaryModal({
-  productId,
-  productName,
-  sellingModel,
-  quantity,
-  accountName,
-  onClose,
-}: TrialSummaryModalProps) {
+export function TrialDrawer() {
+  const { isOpen, params, closeTrial } = useTrialDrawer()
   const { orgInfo } = useSalesforceConfig()
   const { submit, state, reset } = useStartTrial()
+  const lastProductId = useRef<string | null>(null)
+
+  // Reset submission state when the drawer is opened for a different product
+  useEffect(() => {
+    if (!isOpen || !params) return
+    if (lastProductId.current !== null && lastProductId.current !== params.productId) {
+      reset()
+    }
+    lastProductId.current = params.productId
+  }, [isOpen, params, reset])
+
+  // Never mounted before any trial was requested
+  if (!params) return null
 
   const today = new Date()
   const startDate = today.toISOString().split('T')[0]
@@ -51,24 +52,7 @@ export function TrialSummaryModal({
 
   const isLoading = state.status === 'loading'
   const isSuccess = state.status === 'success'
-
-  useEffect(() => {
-    function handleKey(e: KeyboardEvent) {
-      if (e.key === 'Escape' && !isLoading) onClose()
-    }
-    window.addEventListener('keydown', handleKey)
-    return () => window.removeEventListener('keydown', handleKey)
-  }, [isLoading, onClose])
-
-  useEffect(() => () => reset(), [reset])
-
-  function handleBackdropClick(e: React.MouseEvent<HTMLDivElement>) {
-    if (e.target === e.currentTarget && !isLoading) onClose()
-  }
-
-  function handleConfirm() {
-    submit(productId, sellingModel, quantity)
-  }
+  const isIdle = state.status === 'idle'
 
   const sfOrderUrl =
     state.orderId && orgInfo.instanceUrl
@@ -77,33 +61,38 @@ export function TrialSummaryModal({
 
   const spinnerLabel = state.loadingStep ?? 'Creating Trial…'
 
+  function handleConfirm() {
+    if (!params) return
+    submit(params.productId, params.sellingModel, params.quantity)
+  }
+
   return (
-    <div className={styles.backdrop} onClick={handleBackdropClick} role="presentation">
+    <>
+      {isOpen && <div className={styles.backdrop} onClick={closeTrial} aria-hidden />}
+
       <div
-        className={styles.dialog}
+        className={`${styles.drawer} ${isOpen ? styles.drawerOpen : styles.drawerClosed}`}
         role="dialog"
         aria-modal
-        aria-labelledby="trial-modal-title"
+        aria-label="Trial Product Summary"
+        aria-hidden={!isOpen}
       >
-        {/* Header */}
-        <div className={styles.header}>
-          <h2 id="trial-modal-title" className={styles.title}>
+        <div className={styles.drawerHeader}>
+          <span className={styles.drawerTitle}>
             Trial Product Summary
             <span className={styles.trialBadge}>14-Day Trial</span>
-          </h2>
+          </span>
           <button
             type="button"
             className={styles.closeBtn}
-            onClick={onClose}
-            disabled={isLoading}
+            onClick={closeTrial}
             aria-label="Close"
           >
             ×
           </button>
         </div>
 
-        {/* Body */}
-        <div className={styles.body}>
+        <div className={styles.drawerBody}>
           {/* Success banner */}
           {isSuccess && (
             <div className={styles.successBanner} role="status">
@@ -125,30 +114,36 @@ export function TrialSummaryModal({
                   )}
                 </>
               )}
+              <button type="button" className={styles.resetBtn} onClick={reset}>
+                Start a new trial
+              </button>
             </div>
           )}
 
           {/* Error banner */}
           {state.status === 'error' && state.error && (
             <div className={styles.errorBanner} role="alert">
-              <strong>Error:</strong> {state.error}
+              <div><strong>Error:</strong> {state.error}</div>
+              <button type="button" className={styles.resetBtn} onClick={reset}>
+                Try again
+              </button>
             </div>
           )}
 
-          {/* Summary table — always visible */}
+          {/* Summary table */}
           <table className={styles.summaryTable}>
             <tbody>
               <tr className={styles.summaryRow}>
                 <td className={styles.rowLabel}>Product</td>
-                <td className={styles.rowValue}>{productName}</td>
+                <td className={styles.rowValue}>{params.productName}</td>
               </tr>
               <tr className={styles.summaryRow}>
                 <td className={styles.rowLabel}>Selling Model</td>
-                <td className={styles.rowValue}>{sellingModel || '—'}</td>
+                <td className={styles.rowValue}>{params.sellingModel || '—'}</td>
               </tr>
               <tr className={styles.summaryRow}>
                 <td className={styles.rowLabel}>Quantity</td>
-                <td className={styles.rowValue}>{quantity}</td>
+                <td className={styles.rowValue}>{params.quantity}</td>
               </tr>
               <tr className={styles.summaryRow}>
                 <td className={styles.rowLabel}>Trial Start</td>
@@ -166,14 +161,36 @@ export function TrialSummaryModal({
                 <td className={styles.rowLabel}>Total</td>
                 <td className={`${styles.rowValue} ${styles.rowValueFree}`}>$0.00</td>
               </tr>
-              {accountName && (
+              {params.accountName && (
                 <tr className={styles.summaryRow}>
                   <td className={styles.rowLabel}>Account</td>
-                  <td className={styles.rowValue}>{accountName}</td>
+                  <td className={styles.rowValue}>{params.accountName}</td>
                 </tr>
               )}
             </tbody>
           </table>
+
+          {/* Action buttons — only before submission */}
+          {isIdle && (
+            <div className={styles.actions}>
+              <button type="button" className={styles.cancelBtn} onClick={closeTrial}>
+                Cancel
+              </button>
+              <button type="button" className={styles.confirmBtn} onClick={handleConfirm}>
+                Confirm Trial
+              </button>
+            </div>
+          )}
+
+          {/* Loading state */}
+          {isLoading && (
+            <div className={styles.actions}>
+              <button type="button" className={styles.confirmBtn} disabled>
+                <span className={styles.spinner} aria-hidden />
+                {spinnerLabel}
+              </button>
+            </div>
+          )}
 
           {/* PST request collapsibles */}
           {state.requestUrl && (
@@ -219,8 +236,8 @@ export function TrialSummaryModal({
               </ul>
 
               {/* Per-step collapsibles for method/URL + response */}
-              {state.lifecycleSteps.map((step, i) => (
-                (step.url || step.response || step.error) ? (
+              {state.lifecycleSteps.map((step, i) =>
+                step.url || step.response || step.error ? (
                   <details key={i} className={styles.detailsBlock}>
                     <summary className={styles.detailsSummary}>{step.name}</summary>
                     {step.url && (
@@ -245,34 +262,11 @@ export function TrialSummaryModal({
                     )}
                   </details>
                 ) : null
-              ))}
+              )}
             </div>
           )}
         </div>
-
-        {/* Footer */}
-        <div className={styles.footer}>
-          <button
-            type="button"
-            className={styles.cancelBtn}
-            onClick={onClose}
-            disabled={isLoading}
-          >
-            {isSuccess ? 'Close' : 'Cancel'}
-          </button>
-          {!isSuccess && (
-            <button
-              type="button"
-              className={styles.confirmBtn}
-              onClick={handleConfirm}
-              disabled={isLoading}
-            >
-              {isLoading && <span className={styles.spinner} aria-hidden />}
-              {isLoading ? spinnerLabel : 'Confirm Trial'}
-            </button>
-          )}
-        </div>
       </div>
-    </div>
+    </>
   )
 }

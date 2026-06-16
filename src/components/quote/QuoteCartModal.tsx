@@ -1,7 +1,7 @@
-import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuoteCart, type QuoteItem } from '../../quote/QuoteCartContext'
 import { usePlaceSalesTransaction } from '../../quote/usePlaceSalesTransaction'
+import { useSalesforceConfig } from '../../salesforce/SalesforceConfigContext'
 import styles from './QuoteCartModal.module.css'
 
 function formatMoney(amount: number, currency = 'USD'): string {
@@ -9,31 +9,32 @@ function formatMoney(amount: number, currency = 'USD'): string {
 }
 
 export function QuoteCartModal() {
-  const { items, removeItem, clearCart, isModalOpen, closeModal } = useQuoteCart()
+  const { items, clearCart, removeItem, isModalOpen, closeModal } = useQuoteCart()
   const { submit, state, reset } = usePlaceSalesTransaction()
+  const { orgInfo } = useSalesforceConfig()
   const navigate = useNavigate()
-
-  // Auto-close on success after 3s
-  useEffect(() => {
-    if (state.status !== 'success') return
-    const t = setTimeout(closeModal, 3000)
-    return () => clearTimeout(t)
-  }, [state.status, closeModal])
-
-  // Reset PST state when modal closes
-  useEffect(() => {
-    if (!isModalOpen) reset()
-  }, [isModalOpen, reset])
 
   if (!isModalOpen) return null
 
   const grandTotal = items.reduce((sum, i) => sum + i.lineTotal, 0)
   const currency = items[0]?.currencyIsoCode ?? 'USD'
   const isSubmitting = state.status === 'loading'
+  const isSuccess = state.status === 'success'
+
+  const sfQuoteUrl =
+    state.quoteId && orgInfo.instanceUrl
+      ? `${orgInfo.instanceUrl}/${state.quoteId}`
+      : null
 
   function handleViewFullQuote() {
     closeModal()
     navigate('/quotes')
+  }
+
+  function handleNewQuote() {
+    clearCart()
+    reset()
+    closeModal()
   }
 
   return (
@@ -43,7 +44,7 @@ export function QuoteCartModal() {
         <div className={styles.drawerHeader}>
           <span className={styles.drawerTitle}>
             Quote Cart
-            {items.length > 0 && (
+            {items.length > 0 && !isSuccess && (
               <span className={styles.badge}>{items.length}</span>
             )}
           </span>
@@ -53,7 +54,7 @@ export function QuoteCartModal() {
         </div>
 
         <div className={styles.drawerBody}>
-          {items.length === 0 ? (
+          {items.length === 0 && !isSuccess ? (
             <p className={styles.emptyState}>No items in your quote yet.</p>
           ) : (
             <table className={styles.table}>
@@ -64,7 +65,7 @@ export function QuoteCartModal() {
                   <th className={styles.th}>Qty</th>
                   <th className={styles.th}>Unit</th>
                   <th className={styles.th}>Total</th>
-                  <th className={styles.th}></th>
+                  {!isSuccess && <th className={styles.th}></th>}
                 </tr>
               </thead>
               <tbody>
@@ -79,65 +80,126 @@ export function QuoteCartModal() {
                     <td className={styles.td}>
                       {item.lineTotal > 0 ? formatMoney(item.lineTotal, item.currencyIsoCode) : '—'}
                     </td>
-                    <td className={styles.td}>
-                      <button
-                        type="button"
-                        className={styles.removeBtn}
-                        onClick={() => removeItem(item.id)}
-                        aria-label={`Remove ${item.productName}`}
-                        disabled={isSubmitting}
-                      >
-                        ×
-                      </button>
-                    </td>
+                    {!isSuccess && (
+                      <td className={styles.td}>
+                        <button
+                          type="button"
+                          className={styles.removeBtn}
+                          onClick={() => removeItem(item.id)}
+                          aria-label={`Remove ${item.productName}`}
+                          disabled={isSubmitting}
+                        >
+                          ×
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
             </table>
           )}
+
+          {/* API detail collapsibles — shown after submission */}
+          {(state.requestUrl || state.requestBody !== null || state.apiResponse !== null) && (
+            <div className={styles.apiDetails}>
+              {state.requestUrl && (
+                <details className={styles.detailsBlock}>
+                  <summary className={styles.detailsSummary}>Endpoint</summary>
+                  <div className={styles.detailsContent}>
+                    <p className={styles.endpointLine}>
+                      <span className={styles.methodBadge}>POST</span>
+                      {state.requestUrl}
+                    </p>
+                  </div>
+                </details>
+              )}
+
+              {state.requestBody !== null && (
+                <details className={styles.detailsBlock}>
+                  <summary className={styles.detailsSummary}>Request Body</summary>
+                  <pre className={styles.codeBlock}>
+                    {JSON.stringify(state.requestBody, null, 2)}
+                  </pre>
+                </details>
+              )}
+
+              {state.apiResponse !== null && (
+                <details className={styles.detailsBlock}>
+                  <summary className={styles.detailsSummary}>Response</summary>
+                  <pre className={styles.codeBlock}>
+                    {JSON.stringify(state.apiResponse, null, 2)}
+                  </pre>
+                </details>
+              )}
+            </div>
+          )}
         </div>
 
-        {items.length > 0 && (
+        {(items.length > 0 || isSuccess) && (
           <div className={styles.drawerFooter}>
             {state.status === 'error' && (
               <div className={styles.errorBanner} role="alert">
                 {state.error}
               </div>
             )}
-            {state.status === 'success' && (
+
+            {isSuccess && (
               <div className={styles.successBanner} role="status">
-                Quote created successfully
+                <strong>Quote created successfully</strong>
                 {state.quoteId && (
                   <span className={styles.quoteId}> — ID: {state.quoteId}</span>
                 )}
-                <br />
-                <span className={styles.successHint}>Closing in a moment…</span>
+                {sfQuoteUrl && (
+                  <div>
+                    <a
+                      href={sfQuoteUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={styles.sfLink}
+                    >
+                      View in Salesforce →
+                    </a>
+                  </div>
+                )}
               </div>
             )}
-            <div className={styles.totalRow}>
-              <span>Estimated Total</span>
-              <span className={styles.totalAmount}>{formatMoney(grandTotal, currency)}</span>
-            </div>
-            <button
-              type="button"
-              className={styles.requestBtn}
-              onClick={() => submit(items)}
-              disabled={isSubmitting || state.status === 'success'}
-            >
-              {isSubmitting ? 'Submitting…' : 'Request Quote'}
-            </button>
+
+            {!isSuccess && (
+              <div className={styles.totalRow}>
+                <span>Estimated Total</span>
+                <span className={styles.totalAmount}>{formatMoney(grandTotal, currency)}</span>
+              </div>
+            )}
+
+            {!isSuccess && (
+              <button
+                type="button"
+                className={styles.requestBtn}
+                onClick={() => submit(items)}
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? 'Submitting…' : 'Request Quote'}
+              </button>
+            )}
+
             <div className={styles.footerActions}>
               <button type="button" className={styles.viewLink} onClick={handleViewFullQuote}>
                 View Full Quote →
               </button>
-              <button
-                type="button"
-                className={styles.clearBtn}
-                onClick={clearCart}
-                disabled={isSubmitting}
-              >
-                Clear
-              </button>
+              {isSuccess ? (
+                <button type="button" className={styles.newQuoteBtn} onClick={handleNewQuote}>
+                  New Quote
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className={styles.clearBtn}
+                  onClick={clearCart}
+                  disabled={isSubmitting}
+                >
+                  Clear
+                </button>
+              )}
             </div>
           </div>
         )}

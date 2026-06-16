@@ -251,3 +251,114 @@
   font-size: 13px;
   line-height: 1.5;
 }
+
+.sfLink {
+  color: #065f46;
+  font-size: 12px;
+  text-decoration: underline;
+}
+
+.sfLink:hover {
+  color: #047857;
+}
+
+.newQuoteBtn {
+  border: none;
+  background: none;
+  padding: 0;
+  font-size: 13px;
+  font-family: inherit;
+  color: var(--fc-text-muted);
+  cursor: pointer;
+}
+
+.newQuoteBtn:hover {
+  color: var(--fc-text);
+}
+
+/* ── API detail collapsibles ───────────────────────────────────────────── */
+
+.apiDetails {
+  padding: 14px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.detailsBlock {
+  border: 1px solid var(--fc-border);
+  border-radius: var(--fc-radius-sm, 4px);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.detailsSummary {
+  list-style: none;
+  padding: 9px 13px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--fc-text-muted);
+  background: var(--fc-page-bg);
+  cursor: pointer;
+  user-select: none;
+}
+
+.detailsSummary::-webkit-details-marker {
+  display: none;
+}
+
+.detailsSummary::before {
+  content: '▸ ';
+}
+
+details[open] > .detailsSummary {
+  border-bottom: 1px solid var(--fc-border);
+}
+
+details[open] > .detailsSummary::before {
+  content: '▾ ';
+}
+
+.detailsSummary:hover {
+  color: var(--fc-text);
+}
+
+.detailsContent {
+  padding: 10px 13px;
+}
+
+.endpointLine {
+  margin: 0;
+  font-size: 12px;
+  font-family: ui-monospace, monospace;
+  color: var(--fc-text);
+  word-break: break-all;
+  line-height: 1.6;
+}
+
+.methodBadge {
+  display: inline-block;
+  margin-right: 6px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: var(--fc-accent);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  vertical-align: middle;
+}
+
+.codeBlock {
+  margin: 0;
+  padding: 12px 13px;
+  background: var(--fc-page-bg);
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--fc-text);
+  overflow-x: auto;
+  white-space: pre;
+}

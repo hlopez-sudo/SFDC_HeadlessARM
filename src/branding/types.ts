@@ -5,6 +5,14 @@ export type SiteBrandingColors = {
   text: string
 }
 
+export type PlgProductRef = {
+  name: string
+  id: string
+  description: string
+  /** Relative Salesforce path, e.g. /services/images/photo/… — prepend instanceUrl to display */
+  displayUrl: string
+}
+
 export type SiteBranding = {
   siteName: string
   logoMode: 'default' | 'url' | 'upload'
@@ -13,6 +21,12 @@ export type SiteBranding = {
   /** Empty uses DEFAULT_LOGO_URL at apply time (browser tab icon). */
   faviconUrl: string
   colors: SiteBrandingColors
+  /** When true, shows Sign Up Now and hides Products + Quotes in navigation. */
+  enablePlg: boolean
+  plgTrialProduct: PlgProductRef
+  plgBuyNowProduct: PlgProductRef
+  plgEnterpriseProduct: PlgProductRef
+  plgCustomProduct: PlgProductRef
 }
 
 export const DEFAULT_LOGO_URL =
@@ -30,4 +44,9 @@ export const DEFAULT_BRANDING: SiteBranding = {
     background: '#f5f5f5',
     text: '#333333',
   },
+  enablePlg: false,
+  plgTrialProduct:      { name: '', id: '', description: '', displayUrl: '' },
+  plgBuyNowProduct:     { name: '', id: '', description: '', displayUrl: '' },
+  plgEnterpriseProduct: { name: '', id: '', description: '', displayUrl: '' },
+  plgCustomProduct:     { name: '', id: '', description: '', displayUrl: '' },
 }

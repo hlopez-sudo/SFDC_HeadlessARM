@@ -9,6 +9,7 @@ const CATEGORY_SESSION_KEY = 'fc-selected-categories'
 
 export function ProductsPage() {
   const { catalog } = useCatalog()
+  const [viewMode, setViewMode] = useState<'tiles' | 'list'>('tiles')
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<Set<string>>(() => {
     try {
       const raw = sessionStorage.getItem(CATEGORY_SESSION_KEY)
@@ -75,7 +76,30 @@ export function ProductsPage() {
           </div>
         )}
 
-        <ul className={styles.grid} role="list">
+        <ul className={`${styles.grid} ${viewMode === 'list' ? styles.gridList : ''}`} role="list">
+          <li className={styles.toolbarItem}>
+            <div className={styles.toolbar}>
+              <p className={styles.resultCount}>{dynamicProducts.length} products</p>
+              <div className={styles.viewToggle} role="group" aria-label="Product view mode">
+                <button
+                  type="button"
+                  className={`${styles.viewBtn} ${viewMode === 'tiles' ? styles.viewBtnActive : ''}`}
+                  aria-pressed={viewMode === 'tiles'}
+                  onClick={() => setViewMode('tiles')}
+                >
+                  Tiles
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.viewBtn} ${viewMode === 'list' ? styles.viewBtnActive : ''}`}
+                  aria-pressed={viewMode === 'list'}
+                  onClick={() => setViewMode('list')}
+                >
+                  List
+                </button>
+              </div>
+            </div>
+          </li>
           {selectedCategoryIds.size === 0 && (
             <li className={styles.empty}>Select a category to browse products.</li>
           )}
@@ -89,8 +113,11 @@ export function ProductsPage() {
             <li className={styles.empty}>No products found for the selected categories.</li>
           )}
           {dynamicProducts.map((product) => (
-            <li key={product.id} className={styles.gridItem}>
-              <ProductTile product={product} />
+            <li
+              key={product.id}
+              className={`${styles.gridItem} ${viewMode === 'list' ? styles.gridItemList : ''}`}
+            >
+              <ProductTile product={product} viewMode={viewMode} />
             </li>
           ))}
         </ul>

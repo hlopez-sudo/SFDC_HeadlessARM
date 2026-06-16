@@ -6,18 +6,20 @@ import styles from './ProductTile.module.css'
 
 type ProductTileProps = {
   product: CatalogProduct
+  viewMode?: 'tiles' | 'list'
 }
 
-export function ProductTile({ product }: ProductTileProps) {
+export function ProductTile({ product, viewMode = 'tiles' }: ProductTileProps) {
   const detailPath = `/products/${product.id}`
   const [imgFailed, setImgFailed] = useState(false)
+  const isListView = viewMode === 'list'
 
   const showImg = Boolean(product.imageUrl.trim()) && !imgFailed
 
   return (
-    <article className={styles.article}>
-      <div className={styles.imageWrap}>
-        <div className={styles.imageArea} aria-hidden>
+    <article className={`${styles.article} ${isListView ? styles.articleList : ''}`}>
+      <div className={`${styles.imageWrap} ${isListView ? styles.imageWrapList : ''}`}>
+        <div className={`${styles.imageArea} ${isListView ? styles.imageAreaList : ''}`} aria-hidden>
           {showImg ? (
             <img
               className={styles.tileImg}
@@ -31,7 +33,7 @@ export function ProductTile({ product }: ProductTileProps) {
         </div>
       </div>
 
-      <div className={styles.body}>
+      <div className={`${styles.body} ${isListView ? styles.bodyList : ''}`}>
         {product.family && <p className={styles.family}>{product.family}</p>}
 
         <h3 className={styles.title}>
@@ -40,11 +42,9 @@ export function ProductTile({ product }: ProductTileProps) {
           </Link>
         </h3>
 
-        {product.description && (
-          <p className={styles.description}>{product.description}</p>
-        )}
+        {product.description && <p className={`${styles.description} ${isListView ? styles.descriptionList : ''}`}>{product.description}</p>}
 
-        <div className={styles.footer}>
+        <div className={`${styles.footer} ${isListView ? styles.footerList : ''}`}>
           <Link className={styles.cta} to={detailPath}>
             View details
           </Link>

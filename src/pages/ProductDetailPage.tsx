@@ -2,7 +2,6 @@ import { useEffect, useId, useMemo, useState } from 'react'
 import { Navigate, useParams } from 'react-router-dom'
 import { ProductImageGallery } from '../components/products/detail/ProductImageGallery'
 import { SalesforcePricingPanel } from '../components/products/detail/SalesforcePricingPanel'
-import { TrialSummaryModal } from '../components/products/detail/TrialSummaryModal'
 import { AppBreadcrumbs } from '../components/navigation/AppBreadcrumbs'
 import { modelDetailsBySlug } from '../data/product-models'
 import { useProductById } from '../hooks/useProductById'
@@ -12,6 +11,8 @@ import { useHeadlessPricingConfig } from '../salesforce/HeadlessPricingConfigCon
 import { buildHeadlessPricingData } from '../salesforce/buildHeadlessPricingData'
 import { useSalesforceConfig } from '../salesforce/SalesforceConfigContext'
 import { useQuoteCart } from '../quote/QuoteCartContext'
+import { useTrialDrawer } from '../quote/TrialDrawerContext'
+import { useBuyNowDrawer } from '../quote/BuyNowDrawerContext'
 import styles from './ProductDetailPage.module.css'
 
 const MAX_QTY = 99
@@ -38,7 +39,6 @@ export function ProductDetailPage() {
   const [qtyInput, setQtyInput] = useState('1')
   const [committedQuantity, setCommittedQuantity] = useState(1)
   const [sellingModel, setSellingModel] = useState('')
-  const [isTrialModalOpen, setIsTrialModalOpen] = useState(false)
 
   const productResult = useProductById(productSlug)
   const catalogProduct = productResult.status === 'found' ? productResult.product : undefined
@@ -58,6 +58,8 @@ export function ProductDetailPage() {
   const { config: headlessConfig, isComplete: headlessComplete } = useHeadlessPricingConfig()
   const { orgInfo } = useSalesforceConfig()
   const { addItem, openModal } = useQuoteCart()
+  const { openTrial } = useTrialDrawer()
+  const { openBuyNow } = useBuyNowDrawer()
   const apiVersion = orgInfo.apiVersion || DEFAULT_API_VERSION
 
   const pricing = useSalesforcePricing(
@@ -294,7 +296,24 @@ export function ProductDetailPage() {
                 <button
                   type="button"
                   className={styles.btnOutline}
-                  onClick={() => setIsTrialModalOpen(true)}
+                  onClick={() =>
+                    openTrial({
+                      productId: catalogProduct.sfProductId,
+                      productName: catalogProduct.name,
+                      sellingModel,
+                      quantity: committedQuantity,
+                      accountName: (() => {
+                        try {
+                          const raw = localStorage.getItem('fc-active-account')
+                          if (!raw) return null
+                          const parsed = JSON.parse(raw) as { accountName?: string }
+                          return parsed?.accountName ?? null
+                        } catch {
+                          return null
+                        }
+                      })(),
+                    })
+                  }
                 >
                   Start Trial
                 </button>
@@ -302,7 +321,27 @@ export function ProductDetailPage() {
               <button
                 type="button"
                 className={styles.btnPrimary}
-                onClick={() => console.log('Buy Now', catalogProduct.name, sellingModel)}
+                onClick={() =>
+                  openBuyNow({
+                    productId: catalogProduct.sfProductId,
+                    productName: catalogProduct.name,
+                    sellingModel,
+                    sellingModelId: selectedSellingModelId,
+                    quantity: committedQuantity,
+                    unitPrice: pricing.status === 'ok' ? pricing.record.netUnitPrice : 0,
+                    currencyIsoCode: pricing.status === 'ok' ? pricing.record.currencyIsoCode : 'USD',
+                    accountName: (() => {
+                      try {
+                        const raw = localStorage.getItem('fc-active-account')
+                        if (!raw) return null
+                        const parsed = JSON.parse(raw) as { accountName?: string }
+                        return parsed?.accountName ?? null
+                      } catch {
+                        return null
+                      }
+                    })(),
+                  })
+                }
               >
                 Buy Now
               </button>
@@ -334,26 +373,6 @@ export function ProductDetailPage() {
           />
         </aside>
       </div>
-
-      {isTrialModalOpen && (
-        <TrialSummaryModal
-          productId={catalogProduct.sfProductId}
-          productName={catalogProduct.name}
-          sellingModel={sellingModel}
-          quantity={quantity}
-          accountName={(() => {
-            try {
-              const raw = localStorage.getItem('fc-active-account')
-              if (!raw) return null
-              const parsed = JSON.parse(raw) as { accountName?: string }
-              return parsed?.accountName ?? null
-            } catch {
-              return null
-            }
-          })()}
-          onClose={() => setIsTrialModalOpen(false)}
-        />
-      )}
     </div>
   )
 }

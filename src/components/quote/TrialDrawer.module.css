@@ -1,11 +1,9 @@
+/* ── Backdrop + slide-out drawer (mirrors QuoteCartModal) ── */
 .backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.45);
+  background: rgba(0, 0, 0, 0.35);
   z-index: 199;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   animation: fadeIn 0.15s ease;
 }
 
@@ -14,29 +12,40 @@
   to   { opacity: 1; }
 }
 
-@keyframes slideUp {
-  from { opacity: 0; transform: translateY(12px); }
-  to   { opacity: 1; transform: translateY(0); }
+@keyframes slideIn {
+  from { transform: translateX(100%); }
+  to   { transform: translateX(0); }
 }
 
-.dialog {
-  position: relative;
+.drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
   width: 480px;
-  max-width: calc(100vw - 32px);
-  max-height: calc(100vh - 64px);
+  max-width: 95vw;
   background: var(--fc-surface);
-  border: 1px solid var(--fc-border);
-  border-radius: var(--fc-radius, 8px);
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+  border-left: 1px solid var(--fc-border);
+  z-index: 200;
   display: flex;
   flex-direction: column;
-  z-index: 200;
-  animation: slideUp 0.2s ease;
-  overflow: hidden;
+  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.12);
+  transition: transform 0.2s ease;
+}
+
+/* Open state slides in; kept mounted to preserve trial state across collapse */
+.drawerOpen {
+  transform: translateX(0);
+  animation: slideIn 0.2s ease;
+}
+
+.drawerClosed {
+  transform: translateX(100%);
+  pointer-events: none;
 }
 
 /* ── Header ── */
-.header {
+.drawerHeader {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -45,14 +54,13 @@
   flex-shrink: 0;
 }
 
-.title {
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--fc-text);
-  margin: 0;
+.drawerTitle {
   display: flex;
   align-items: center;
   gap: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--fc-text);
 }
 
 .trialBadge {
@@ -62,25 +70,24 @@
   border-radius: 10px;
   background: #dbeafe;
   color: #1d4ed8;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.03em;
 }
 
 .closeBtn {
-  width: 30px;
-  height: 30px;
+  width: 32px;
+  height: 32px;
   border: none;
   background: transparent;
-  font-size: 20px;
+  font-size: 22px;
   line-height: 1;
   color: var(--fc-text-muted);
   cursor: pointer;
-  border-radius: var(--fc-radius-sm, 4px);
+  border-radius: var(--fc-radius-sm);
   display: flex;
   align-items: center;
   justify-content: center;
-  flex-shrink: 0;
 }
 
 .closeBtn:hover {
@@ -88,16 +95,17 @@
   color: var(--fc-text);
 }
 
-/* ── Body ── */
-.body {
+/* ── Scrollable body ── */
+.drawerBody {
   flex: 1;
   overflow-y: auto;
-  padding: 20px;
+  padding: 18px 20px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
 }
 
+/* ── Summary table ── */
 .summaryTable {
   width: 100%;
   border-collapse: collapse;
@@ -129,6 +137,87 @@
 .rowValueFree {
   font-weight: 600;
   color: #059669;
+}
+
+/* ── Action buttons ── */
+.actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.cancelBtn {
+  padding: 8px 16px;
+  border: 1px solid var(--fc-border);
+  border-radius: var(--fc-radius-sm, 4px);
+  background: transparent;
+  color: var(--fc-text-muted);
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.cancelBtn:hover {
+  background: var(--fc-page-bg);
+  color: var(--fc-text);
+}
+
+.confirmBtn {
+  padding: 8px 18px;
+  border: 1px solid var(--fc-accent);
+  border-radius: var(--fc-radius-sm, 4px);
+  background: var(--fc-accent);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.confirmBtn:hover:not(:disabled) {
+  background: var(--fc-accent-hover);
+  border-color: var(--fc-accent-hover);
+}
+
+.confirmBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.resetBtn {
+  background: none;
+  border: none;
+  font-size: 12px;
+  color: var(--fc-accent);
+  cursor: pointer;
+  padding: 0;
+  font-family: inherit;
+  text-decoration: underline;
+}
+
+.resetBtn:hover {
+  opacity: 0.75;
+}
+
+/* ── Spinner ── */
+.spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  vertical-align: middle;
+  margin-right: 6px;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 /* ── State banners ── */
@@ -167,22 +256,9 @@
   color: #b91c1c;
   font-size: 13px;
   line-height: 1.5;
-}
-
-.spinner {
-  display: inline-block;
-  width: 14px;
-  height: 14px;
-  border: 2px solid rgba(255, 255, 255, 0.4);
-  border-top-color: #fff;
-  border-radius: 50%;
-  animation: spin 0.6s linear infinite;
-  vertical-align: middle;
-  margin-right: 6px;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
 /* ── Collapsible detail sections ── */
@@ -190,6 +266,7 @@
   border: 1px solid var(--fc-border);
   border-radius: var(--fc-radius-sm, 4px);
   overflow: hidden;
+  flex-shrink: 0;
 }
 
 .detailsSummary {
@@ -260,8 +337,6 @@ details[open] > .detailsSummary::before {
   line-height: 1.6;
   color: var(--fc-text);
   overflow-x: auto;
-  max-height: 260px;
-  overflow-y: auto;
   white-space: pre;
 }
 
@@ -318,56 +393,4 @@ details[open] > .detailsSummary::before {
 .stepName {
   line-height: 20px;
   flex: 1;
-}
-
-/* ── Footer ── */
-.footer {
-  padding: 14px 20px;
-  border-top: 1px solid var(--fc-border);
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  flex-shrink: 0;
-}
-
-.cancelBtn {
-  padding: 8px 16px;
-  border: 1px solid var(--fc-border);
-  border-radius: var(--fc-radius-sm, 4px);
-  background: transparent;
-  color: var(--fc-text-muted);
-  font-size: 13px;
-  font-weight: 500;
-  font-family: inherit;
-  cursor: pointer;
-}
-
-.cancelBtn:hover {
-  background: var(--fc-page-bg);
-  color: var(--fc-text);
-}
-
-.confirmBtn {
-  padding: 8px 18px;
-  border: 1px solid var(--fc-accent);
-  border-radius: var(--fc-radius-sm, 4px);
-  background: var(--fc-accent);
-  color: #fff;
-  font-size: 13px;
-  font-weight: 600;
-  font-family: inherit;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.confirmBtn:hover:not(:disabled) {
-  background: var(--fc-accent-hover);
-  border-color: var(--fc-accent-hover);
-}
-
-.confirmBtn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
 }

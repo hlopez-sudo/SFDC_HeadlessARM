@@ -9,8 +9,18 @@
   overflow: hidden;
 }
 
+.articleList {
+  flex-direction: row;
+  align-items: stretch;
+  min-height: 118px;
+}
+
 .imageWrap {
   position: relative;
+}
+
+.imageWrapList {
+  flex-shrink: 0;
 }
 
 .imageArea {
@@ -24,6 +34,12 @@
   border: 1px solid var(--fc-border-light);
   color: var(--fc-text-subtle);
   overflow: hidden;
+}
+
+.imageAreaList {
+  min-height: 92px;
+  width: 120px;
+  margin: 12px;
 }
 
 .tileImg {
@@ -40,6 +56,11 @@
   padding: 14px 14px 16px;
   gap: 8px;
   min-height: 0;
+}
+
+.bodyList {
+  padding: 12px 14px;
+  gap: 6px;
 }
 
 .family {
@@ -79,11 +100,20 @@
   overflow: hidden;
 }
 
+.descriptionList {
+  -webkit-line-clamp: 2;
+}
+
 .footer {
   margin-top: auto;
   padding-top: 10px;
   display: flex;
   justify-content: flex-end;
+}
+
+.footerList {
+  margin-top: 2px;
+  padding-top: 6px;
 }
 
 .cta {
@@ -118,4 +148,16 @@
 .ctaDisabled:hover {
   background: #fafafa;
   color: var(--fc-text-subtle);
+}
+
+@media (max-width: 768px) {
+  .articleList {
+    flex-direction: column;
+  }
+
+  .imageAreaList {
+    width: auto;
+    min-height: 120px;
+    margin: 10px 10px 0;
+  }
 }

@@ -39,7 +39,7 @@ export const DEFAULT_HEADLESS_PRICING_CONFIG: HeadlessPricingConfig = {
   isHighVolumeLineItems: false,
   isSkipWaterfall: false,
   persistContext: false,
-  skipDiscovery: false,
+  skipDiscovery: true,
   taggedData: false,
   useSessionScopedContext: false,
 }
