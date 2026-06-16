@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAccountQuotes, type QuoteRecord } from '../hooks/useAccountQuotes'
 import { useAccountOrders, type OrderRecord } from '../hooks/useAccountOrders'
@@ -161,17 +161,33 @@ function OrdersCard({ accountId }: { accountId: string }) {
 
 function AssetsCard({ accountId }: { accountId: string }) {
   const { data, loading, error } = useAccountAssets(accountId)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+
+  function toggleSelected(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
 
   return (
     <div className={styles.card}>
       <div className={styles.cardHeader}>
-        <span className={styles.cardTitle}>ASSETS</span>
-        {!loading && !error && <span className={styles.badge}>{data.length}</span>}
+        <span className={styles.cardTitle}>ASSETS & SUBSCRIPTIONS</span>
+        <div className={styles.assetActions}>
+          <button type="button" className={styles.assetActionBtn}>Renew</button>
+          <button type="button" className={styles.assetActionBtn}>Cancel</button>
+          <button type="button" className={styles.assetActionBtn}>Upgrade</button>
+          {!loading && !error && <span className={styles.badge}>{data.length}</span>}
+        </div>
       </div>
       <div className={styles.tableWrap}>
         <table className={styles.table}>
           <thead>
             <tr>
+              <th className={`${styles.th} ${styles.selectCol}`}>Select</th>
               <th className={styles.th}>Name</th>
               <th className={styles.th}>Product</th>
               <th className={styles.th}>Status</th>
@@ -181,11 +197,20 @@ function AssetsCard({ accountId }: { accountId: string }) {
             </tr>
           </thead>
           <tbody>
-            {loading && <SpinnerRow cols={6} />}
-            {!loading && error && <ErrorRow cols={6} message={error} />}
-            {!loading && !error && data.length === 0 && <EmptyRow cols={6} />}
+            {loading && <SpinnerRow cols={7} />}
+            {!loading && error && <ErrorRow cols={7} message={error} />}
+            {!loading && !error && data.length === 0 && <EmptyRow cols={7} />}
             {!loading && !error && data.map((r: AssetRecord) => (
               <tr key={r.id}>
+                <td className={`${styles.td} ${styles.selectCell}`}>
+                  <input
+                    type="checkbox"
+                    className={styles.rowCheckbox}
+                    aria-label={`Select ${r.name}`}
+                    checked={selectedIds.has(r.id)}
+                    onChange={() => toggleSelected(r.id)}
+                  />
+                </td>
                 <td className={styles.td}>{r.name}</td>
                 <td className={styles.td}>{r.productName ?? '—'}</td>
                 <td className={styles.td}><StatusChip status={r.status} /></td>
@@ -280,9 +305,9 @@ export function DashboardPage() {
         <p className={styles.accountId}>{account.accountId}</p>
       </div>
 
+      <AssetsCard accountId={account.accountId} />
       <QuotesCard accountId={account.accountId} />
       <OrdersCard accountId={account.accountId} />
-      <AssetsCard accountId={account.accountId} />
       <InvoicesCard accountId={account.accountId} />
     </div>
   )

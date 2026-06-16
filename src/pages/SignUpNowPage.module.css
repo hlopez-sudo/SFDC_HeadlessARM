@@ -1,0 +1,338 @@
+.wrap {
+  padding: 20px 24px 48px;
+  max-width: 1440px;
+}
+
+.title {
+  font-size: 22px;
+  font-weight: 600;
+  margin: 0 0 6px;
+}
+
+.lead {
+  margin: 0 0 32px;
+  color: var(--fc-text-muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* ── Tile grid ─────────────────────────────────────────────────────────── */
+
+.tilesGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+
+@media (max-width: 1400px) {
+  .tilesGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 680px) {
+  .tilesGrid {
+    grid-template-columns: 1fr;
+    max-width: 420px;
+  }
+}
+
+/* ── Individual tile ───────────────────────────────────────────────────── */
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border: 1px solid var(--fc-border);
+  border-radius: var(--fc-radius);
+  background: var(--fc-surface);
+  overflow: hidden;
+}
+
+.tileFeatured {
+  border-color: var(--fc-accent);
+  box-shadow: 0 0 0 2px var(--fc-accent), 0 4px 16px rgba(0, 0, 0, 0.10);
+}
+
+.mostPopularBanner {
+  margin: -20px -20px 14px;
+  padding: 7px 20px;
+  background: var(--fc-accent);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-align: center;
+}
+
+.tileHeader {
+  padding: 20px 20px 16px;
+  border-bottom: 1px solid var(--fc-border-light);
+}
+
+.tierLabel {
+  display: inline-block;
+  margin-bottom: 8px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--fc-accent);
+}
+
+.productName {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--fc-text);
+  line-height: 1.3;
+}
+
+.tileBody {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  flex: 1;
+}
+
+/* ── Quantity ──────────────────────────────────────────────────────────── */
+
+.qtyBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.qtyRow {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* ── Term toggle (Monthly / Annual) ───────────────────────────────────── */
+
+.termToggle {
+  display: inline-flex;
+  border: 1px solid var(--fc-border);
+  border-radius: var(--fc-radius-sm);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.termBtn {
+  padding: 6px 12px;
+  border: none;
+  background: transparent;
+  color: var(--fc-text-muted);
+  font-size: 12px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.termBtn:hover {
+  background: var(--fc-page-bg);
+  color: var(--fc-text);
+}
+
+.termActive {
+  padding: 6px 12px;
+  border: none;
+  background: var(--fc-accent);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: default;
+  line-height: 1;
+}
+
+.qtyLabel {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--fc-text-muted);
+  letter-spacing: 0.04em;
+}
+
+.qtyControls {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  border: 1px solid var(--fc-border);
+  border-radius: var(--fc-radius-sm);
+  background: var(--fc-surface);
+  overflow: hidden;
+  width: fit-content;
+}
+
+.qtyBtn {
+  width: 34px;
+  height: 34px;
+  border: none;
+  background: transparent;
+  color: var(--fc-text);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.qtyBtn:hover:not(:disabled) {
+  background: var(--fc-page-bg);
+}
+
+.qtyBtn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.qtyValue {
+  width: 52px;
+  height: 34px;
+  border: none;
+  border-left: 1px solid var(--fc-border);
+  border-right: 1px solid var(--fc-border);
+  background: var(--fc-surface);
+  color: var(--fc-text);
+  font-size: 14px;
+  font-family: inherit;
+  text-align: center;
+  -moz-appearance: textfield;
+}
+
+.qtyValue::-webkit-inner-spin-button,
+.qtyValue::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+}
+
+.qtyFixed {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--fc-text);
+  padding: 6px 0;
+}
+
+/* ── Price section ─────────────────────────────────────────────────────── */
+
+.priceSection {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.priceRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.priceLabel {
+  font-size: 13px;
+  color: var(--fc-text-muted);
+}
+
+.unitPrice {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--fc-text);
+}
+
+.totalPrice {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--fc-text);
+}
+
+.trialMsg {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--fc-text-muted);
+  font-style: italic;
+  line-height: 1.4;
+}
+
+.pricingError {
+  font-size: 12px;
+  color: var(--fc-accent);
+  margin: 0;
+}
+
+/* ── Action button ─────────────────────────────────────────────────────── */
+
+.tileFooter {
+  padding: 0 20px 20px;
+}
+
+.btnPrimary {
+  display: block;
+  width: 100%;
+  padding: 10px 16px;
+  border: 1px solid var(--fc-accent);
+  border-radius: var(--fc-radius-sm);
+  background: var(--fc-accent);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  text-align: center;
+}
+
+.btnPrimary:hover {
+  background: var(--fc-accent-hover);
+  border-color: var(--fc-accent-hover);
+}
+
+.btnOutline {
+  display: block;
+  width: 100%;
+  padding: 10px 16px;
+  border: 1px solid var(--fc-accent);
+  border-radius: var(--fc-radius-sm);
+  background: transparent;
+  color: var(--fc-accent);
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  text-align: center;
+}
+
+.btnOutline:hover {
+  background: var(--fc-accent-muted);
+}
+
+/* ── Tile image + description ──────────────────────────────────────────── */
+
+.tileImage {
+  width: 100%;
+  max-height: 140px;
+  object-fit: cover;
+  border-radius: var(--fc-radius-sm);
+  margin-top: 10px;
+  display: block;
+}
+
+.tileDescription {
+  font-size: 13px;
+  color: var(--fc-text-muted);
+  line-height: 1.45;
+  margin: 0;
+}
+
+/* ── Not configured notice ─────────────────────────────────────────────── */
+
+.notConfigured {
+  padding: 48px 0;
+  color: var(--fc-text-muted);
+  font-size: 14px;
+}

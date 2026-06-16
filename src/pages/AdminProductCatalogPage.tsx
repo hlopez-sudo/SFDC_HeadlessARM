@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type ChangeEvent } from 'react'
 import { useCatalog } from '../catalog/CatalogContext'
 import type { CatalogProduct, ProductCatalog, ProductCategoryEntry, SellingModelEntry } from '../catalog/types'
+import { DEFAULT_CATALOG } from '../catalog/types'
 import { useSalesforceConfig } from '../salesforce/SalesforceConfigContext'
 import { SalesforceLookupInput } from '../components/salesforce/SalesforceLookupInput'
 import styles from './AdminProductCatalogPage.module.css'
@@ -22,6 +23,9 @@ export function AdminProductCatalogPage() {
   const { orgInfo } = useSalesforceConfig()
   const apiVersion = orgInfo.apiVersion || '62.0'
   const [draft, setDraft] = useState<ProductCatalog>(() => structuredClone(catalog))
+  const [categoryOpen, setCategoryOpen] = useState(true)
+  const [sellingModelsOpen, setSellingModelsOpen] = useState(false)
+  const [productsOpen, setProductsOpen] = useState(false)
 
   useEffect(() => {
     setDraft(structuredClone(catalog))
@@ -35,6 +39,15 @@ export function AdminProductCatalogPage() {
   const onSave = useCallback(() => {
     setCatalog(structuredClone(draft))
   }, [draft, setCatalog])
+
+  const onRevert = useCallback(() => {
+    setDraft((prev) => ({
+      ...prev,
+      pageHeader: DEFAULT_CATALOG.pageHeader,
+      pageDescription: DEFAULT_CATALOG.pageDescription,
+      productCategories: [],
+    }))
+  }, [])
 
 const setHeader = useCallback((e: ChangeEvent<HTMLInputElement>) => {
     setDraft((prev) => ({ ...prev, pageHeader: e.target.value }))
@@ -160,8 +173,12 @@ const setHeader = useCallback((e: ChangeEvent<HTMLInputElement>) => {
     <div className={styles.wrap}>
       <h1 className={styles.title}>Product Catalog</h1>
       <p className={styles.lead}>
-        Configure the products page header, description, and the list of product tiles. Changes are
-        saved to this browser when you click Save.
+        Configure the Products Page Header &amp; Description, and add the Product Categories you want to
+        browse. There is no need to configure individual Product Tiles or Product Selling Models. Each
+        Product corresponding to the Categories will be dynamically queried from your connected
+        Salesforce Org when browsing Products. Product Selling Model (Options) will be queried
+        directly when viewing individual Product Details. Changes are saved to this browser when you
+        click Save.
       </p>
 
       <div className={styles.actions}>
@@ -172,6 +189,13 @@ const setHeader = useCallback((e: ChangeEvent<HTMLInputElement>) => {
           onClick={onSave}
         >
           Save
+        </button>
+        <button
+          type="button"
+          className={`${styles.btn} ${styles.revertBtn}`}
+          onClick={onRevert}
+        >
+          Revert to Default
         </button>
       </div>
 
@@ -201,212 +225,264 @@ const setHeader = useCallback((e: ChangeEvent<HTMLInputElement>) => {
       </fieldset>
 
       <fieldset className={styles.section}>
-        <legend className={styles.sectionTitle}>Product Category</legend>
-        <div className={styles.tableWrap}>
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                <th className={styles.colDisplayName}>Display Name</th>
-                <th className={styles.colSfModelId}>ID</th>
-                <th className={styles.colDel}></th>
-              </tr>
-            </thead>
-            <tbody>
-              {draft.productCategories.map((cat, idx) => (
-                <tr key={cat.id}>
-                  <td className={styles.colDisplayName}>
-                    <SalesforceLookupInput
-                      value={cat.displayName}
-                      onChange={(v) => updateProductCategory(idx, 'displayName', v)}
-                      onSelect={(rec) => selectProductCategoryOption(idx, rec)}
-                      sObject="ProductCategory"
-                      queryFields={['Id', 'Name']}
-                      searchFields={['Name']}
-                      valueField="Name"
-                      displayField="Name"
-                      subLabelField="Id"
-                      orderBy="Name ASC"
-                      placeholder="e.g. Hardware"
-                      apiVersion={apiVersion}
-                    />
-                  </td>
-                  <td className={styles.colSfModelId}>
-                    <input
-                      className={styles.cellInput}
-                      type="text"
-                      value={cat.sfId}
-                      onChange={(e) => updateProductCategory(idx, 'sfId', e.target.value)}
-                      placeholder="Salesforce ID"
-                    />
-                  </td>
-                  <td className={styles.colDel}>
-                    <button
-                      type="button"
-                      className={styles.btnIcon}
-                      aria-label={`Delete ${cat.displayName || 'row'}`}
-                      onClick={() => deleteProductCategory(idx)}
-                    >
-                      ×
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <button type="button" className={styles.addRow} onClick={addProductCategory}>
-          + Add row
-        </button>
+        <legend className={styles.sectionTitle}>
+          Product Category
+          <button
+            type="button"
+            className={styles.sectionToggle}
+            onClick={() => setCategoryOpen((o) => !o)}
+            aria-expanded={categoryOpen}
+          >
+            <span className={`${styles.chevron} ${categoryOpen ? styles.chevronOpen : ''}`}>▸</span>
+          </button>
+        </legend>
+        {categoryOpen && (
+          <div>
+            <div className={styles.tableWrap}>
+              <table className={styles.table}>
+                <thead>
+                  <tr>
+                    <th className={styles.colDisplayName}>Display Name</th>
+                    <th className={styles.colSfModelId}>ID</th>
+                    <th className={styles.colDel}></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {draft.productCategories.map((cat, idx) => (
+                    <tr key={cat.id}>
+                      <td className={styles.colDisplayName}>
+                        <SalesforceLookupInput
+                          value={cat.displayName}
+                          onChange={(v) => updateProductCategory(idx, 'displayName', v)}
+                          onSelect={(rec) => selectProductCategoryOption(idx, rec)}
+                          sObject="ProductCategory"
+                          queryFields={['Id', 'Name']}
+                          searchFields={['Name']}
+                          valueField="Name"
+                          displayField="Name"
+                          subLabelField="Id"
+                          orderBy="Name ASC"
+                          placeholder="e.g. Hardware"
+                          apiVersion={apiVersion}
+                        />
+                      </td>
+                      <td className={styles.colSfModelId}>
+                        <input
+                          className={styles.cellInput}
+                          type="text"
+                          value={cat.sfId}
+                          onChange={(e) => updateProductCategory(idx, 'sfId', e.target.value)}
+                          placeholder="Salesforce ID"
+                        />
+                      </td>
+                      <td className={styles.colDel}>
+                        <button
+                          type="button"
+                          className={styles.btnIcon}
+                          aria-label={`Delete ${cat.displayName || 'row'}`}
+                          onClick={() => deleteProductCategory(idx)}
+                        >
+                          ×
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <button type="button" className={styles.addRow} onClick={addProductCategory}>
+              + Add row
+            </button>
+          </div>
+        )}
       </fieldset>
 
       <fieldset className={styles.section}>
-        <legend className={styles.sectionTitle}>Product Selling Models — Deprecated: Options are now dynamically populated on the Product Detail page by querying: SELECT Id, Product2.Name, Product2Id, ProductSellingModel.Name, ProductSellingModelId FROM ProductSellingModelOption WHERE Product2Id = &#123;Product2Id&#125;</legend>
-        <div className={styles.tableWrap}>
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                <th className={styles.colDisplayName}>Display Name</th>
-                <th className={styles.colSfModelId}>ID</th>
-                <th className={styles.colDel}></th>
-              </tr>
-            </thead>
-            <tbody>
-              {draft.sellingModels.map((model, idx) => (
-                <tr key={model.id}>
-                  <td className={styles.colDisplayName}>
-                    <SalesforceLookupInput
-                      value={model.displayName}
-                      onChange={(v) => updateSellingModel(idx, 'displayName', v)}
-                      onSelect={(rec) => selectSellingModelOption(idx, rec)}
-                      sObject="ProductSellingModel"
-                      queryFields={['Id', 'Name']}
-                      searchFields={['Name']}
-                      valueField="Name"
-                      displayField="Name"
-                      subLabelField="Id"
-                      orderBy="Name ASC"
-                      placeholder="e.g. One-Time"
-                      apiVersion={apiVersion}
-                    />
-                  </td>
-                  <td className={styles.colSfModelId}>
-                    <input
-                      className={styles.cellInput}
-                      type="text"
-                      value={model.sfId}
-                      onChange={(e) => updateSellingModel(idx, 'sfId', e.target.value)}
-                      placeholder="Salesforce ID"
-                    />
-                  </td>
-                  <td className={styles.colDel}>
-                    <button
-                      type="button"
-                      className={styles.btnIcon}
-                      aria-label={`Delete ${model.displayName || 'row'}`}
-                      onClick={() => deleteSellingModel(idx)}
-                    >
-                      ×
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <button type="button" className={styles.addRow} onClick={addSellingModel}>
-          + Add row
-        </button>
+        <legend className={styles.sectionTitle}>
+          Product Selling Models
+          <button
+            type="button"
+            className={styles.sectionToggle}
+            onClick={() => setSellingModelsOpen((o) => !o)}
+            aria-expanded={sellingModelsOpen}
+          >
+            <span className={`${styles.chevron} ${sellingModelsOpen ? styles.chevronOpen : ''}`}>▸</span>
+          </button>
+        </legend>
+        {sellingModelsOpen && (
+          <div>
+            <p className={styles.hint}>
+              Deprecated: Options are now dynamically populated on the Product Detail page by querying:
+              SELECT Id, Product2.Name, Product2Id, ProductSellingModel.Name, ProductSellingModelId
+              FROM ProductSellingModelOption WHERE Product2Id = {'{Product2Id}'}
+            </p>
+            <div className={styles.tableWrap}>
+              <table className={styles.table}>
+                <thead>
+                  <tr>
+                    <th className={styles.colDisplayName}>Display Name</th>
+                    <th className={styles.colSfModelId}>ID</th>
+                    <th className={styles.colDel}></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {draft.sellingModels.map((model, idx) => (
+                    <tr key={model.id}>
+                      <td className={styles.colDisplayName}>
+                        <SalesforceLookupInput
+                          value={model.displayName}
+                          onChange={(v) => updateSellingModel(idx, 'displayName', v)}
+                          onSelect={(rec) => selectSellingModelOption(idx, rec)}
+                          sObject="ProductSellingModel"
+                          queryFields={['Id', 'Name']}
+                          searchFields={['Name']}
+                          valueField="Name"
+                          displayField="Name"
+                          subLabelField="Id"
+                          orderBy="Name ASC"
+                          placeholder="e.g. One-Time"
+                          apiVersion={apiVersion}
+                        />
+                      </td>
+                      <td className={styles.colSfModelId}>
+                        <input
+                          className={styles.cellInput}
+                          type="text"
+                          value={model.sfId}
+                          onChange={(e) => updateSellingModel(idx, 'sfId', e.target.value)}
+                          placeholder="Salesforce ID"
+                        />
+                      </td>
+                      <td className={styles.colDel}>
+                        <button
+                          type="button"
+                          className={styles.btnIcon}
+                          aria-label={`Delete ${model.displayName || 'row'}`}
+                          onClick={() => deleteSellingModel(idx)}
+                        >
+                          ×
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <button type="button" className={styles.addRow} onClick={addSellingModel}>
+              + Add row
+            </button>
+          </div>
+        )}
       </fieldset>
 
       <fieldset className={styles.section}>
-        <legend className={styles.sectionTitle}>Products — Deprecated: Products are now dynamically populated on the Product Search page based on the Category selected by querying: SELECT ProductCategoryId, ProductId, Product.Name, Product.DisplayUrl FROM ProductCategoryProduct WHERE ProductCategoryId = &#123;ProductCategoryId&#125;</legend>
-        <div className={styles.tableWrap}>
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                <th className={styles.colName}>Product Name</th>
-                <th className={styles.colFamily}>Product Family</th>
-                <th className={styles.colDesc}>Product Description</th>
-                <th className={styles.colSfId}>Salesforce ProductID</th>
-                <th className={styles.colImage}>Image URL</th>
-                <th className={styles.colDel}></th>
-              </tr>
-            </thead>
-            <tbody>
-              {draft.products.map((product, idx) => (
-                <tr key={product.id}>
-                  <td className={styles.colName}>
-                    <SalesforceLookupInput
-                      value={product.name}
-                      onChange={(v) => updateRow(idx, 'name', v)}
-                      onSelect={(rec) => selectProduct2(idx, rec)}
-                      sObject="Product2"
-                      queryFields={['Id', 'Name', 'Family']}
-                      searchFields={['Name']}
-                      valueField="Name"
-                      displayField="Name"
-                      subLabelField="Family"
-                      extraWhere="IsActive = true"
-                      orderBy="Name ASC"
-                      placeholder="Product name"
-                      apiVersion={apiVersion}
-                    />
-                  </td>
-                  <td className={styles.colFamily}>
-                    <input
-                      className={styles.cellInput}
-                      type="text"
-                      value={product.family}
-                      onChange={(e) => updateRow(idx, 'family', e.target.value)}
-                      placeholder="Product family"
-                    />
-                  </td>
-                  <td className={styles.colDesc}>
-                    <input
-                      className={styles.cellInput}
-                      type="text"
-                      value={product.description}
-                      onChange={(e) => updateRow(idx, 'description', e.target.value)}
-                      placeholder="Short description"
-                    />
-                  </td>
-                  <td className={styles.colSfId}>
-                    <input
-                      className={styles.cellInput}
-                      type="text"
-                      value={product.sfProductId}
-                      onChange={(e) => updateRow(idx, 'sfProductId', e.target.value)}
-                      placeholder="Salesforce ID"
-                    />
-                  </td>
-                  <td className={styles.colImage}>
-                    <input
-                      className={styles.cellInput}
-                      type="url"
-                      inputMode="url"
-                      value={product.imageUrl}
-                      onChange={(e) => updateRow(idx, 'imageUrl', e.target.value)}
-                      placeholder="https://example.com/image.png"
-                    />
-                  </td>
-                  <td className={styles.colDel}>
-                    <button
-                      type="button"
-                      className={styles.btnIcon}
-                      aria-label={`Delete ${product.name || 'row'}`}
-                      onClick={() => deleteRow(idx)}
-                    >
-                      ×
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <button type="button" className={styles.addRow} onClick={addRow}>
-          + Add row
-        </button>
+        <legend className={styles.sectionTitle}>
+          Products
+          <button
+            type="button"
+            className={styles.sectionToggle}
+            onClick={() => setProductsOpen((o) => !o)}
+            aria-expanded={productsOpen}
+          >
+            <span className={`${styles.chevron} ${productsOpen ? styles.chevronOpen : ''}`}>▸</span>
+          </button>
+        </legend>
+        {productsOpen && (
+          <div>
+            <p className={styles.hint}>
+              Deprecated: Products are now dynamically populated on the Product Search page based on the
+              Category selected by querying: SELECT ProductCategoryId, ProductId, Product.Name,
+              Product.DisplayUrl FROM ProductCategoryProduct WHERE ProductCategoryId = {'{ProductCategoryId}'}
+            </p>
+            <div className={styles.tableWrap}>
+              <table className={styles.table}>
+                <thead>
+                  <tr>
+                    <th className={styles.colName}>Product Name</th>
+                    <th className={styles.colFamily}>Product Family</th>
+                    <th className={styles.colDesc}>Product Description</th>
+                    <th className={styles.colSfId}>Salesforce ProductID</th>
+                    <th className={styles.colImage}>Image URL</th>
+                    <th className={styles.colDel}></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {draft.products.map((product, idx) => (
+                    <tr key={product.id}>
+                      <td className={styles.colName}>
+                        <SalesforceLookupInput
+                          value={product.name}
+                          onChange={(v) => updateRow(idx, 'name', v)}
+                          onSelect={(rec) => selectProduct2(idx, rec)}
+                          sObject="Product2"
+                          queryFields={['Id', 'Name', 'Family']}
+                          searchFields={['Name']}
+                          valueField="Name"
+                          displayField="Name"
+                          subLabelField="Family"
+                          extraWhere="IsActive = true"
+                          orderBy="Name ASC"
+                          placeholder="Product name"
+                          apiVersion={apiVersion}
+                        />
+                      </td>
+                      <td className={styles.colFamily}>
+                        <input
+                          className={styles.cellInput}
+                          type="text"
+                          value={product.family}
+                          onChange={(e) => updateRow(idx, 'family', e.target.value)}
+                          placeholder="Product family"
+                        />
+                      </td>
+                      <td className={styles.colDesc}>
+                        <input
+                          className={styles.cellInput}
+                          type="text"
+                          value={product.description}
+                          onChange={(e) => updateRow(idx, 'description', e.target.value)}
+                          placeholder="Short description"
+                        />
+                      </td>
+                      <td className={styles.colSfId}>
+                        <input
+                          className={styles.cellInput}
+                          type="text"
+                          value={product.sfProductId}
+                          onChange={(e) => updateRow(idx, 'sfProductId', e.target.value)}
+                          placeholder="Salesforce ID"
+                        />
+                      </td>
+                      <td className={styles.colImage}>
+                        <input
+                          className={styles.cellInput}
+                          type="url"
+                          inputMode="url"
+                          value={product.imageUrl}
+                          onChange={(e) => updateRow(idx, 'imageUrl', e.target.value)}
+                          placeholder="https://example.com/image.png"
+                        />
+                      </td>
+                      <td className={styles.colDel}>
+                        <button
+                          type="button"
+                          className={styles.btnIcon}
+                          aria-label={`Delete ${product.name || 'row'}`}
+                          onClick={() => deleteRow(idx)}
+                        >
+                          ×
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <button type="button" className={styles.addRow} onClick={addRow}>
+              + Add row
+            </button>
+          </div>
+        )}
       </fieldset>
     </div>
   )

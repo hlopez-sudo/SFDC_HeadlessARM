@@ -38,6 +38,21 @@
   color: var(--fc-text-subtle);
 }
 
+.toggleRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.toggleLabel {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--fc-text);
+  cursor: pointer;
+  user-select: none;
+}
+
 .field {
   margin-bottom: 14px;
 }
@@ -104,6 +119,17 @@
 
 .btn:hover {
   background: var(--fc-page-bg);
+}
+
+.btnRevertPlg {
+  margin-top: 10px;
+  font-size: 13px;
+  padding: 6px 12px;
+}
+
+.btnRevertPlg:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .btnDanger {
@@ -177,4 +203,63 @@
   font-weight: 500;
   color: var(--fc-text);
   margin-bottom: 4px;
+}
+
+.primarySection {
+  margin: 0 0 20px;
+  padding: 20px 24px;
+  border: 1px solid var(--fc-border);
+  border-radius: var(--fc-radius);
+  background: var(--fc-surface);
+}
+
+.primarySectionTitle {
+  display: flex;
+  align-items: center;
+  margin: 0 0 14px;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0;
+  color: var(--fc-text);
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--fc-border-light);
+}
+
+.plgProducts {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--fc-border-light);
+}
+
+.subSectionTitle {
+  margin: 0 0 4px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--fc-text);
+}
+
+.sectionToggle {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 6px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font-size: inherit;
+  font-family: inherit;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.chevron {
+  display: inline-block;
+  font-style: normal;
+  transform: rotate(0deg);
+  transition: transform 0.15s ease;
+}
+
+.chevronOpen {
+  transform: rotate(90deg);
 }

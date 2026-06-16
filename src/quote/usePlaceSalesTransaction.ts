@@ -125,6 +125,9 @@ export function usePlaceSalesTransaction() {
           if (!pricebookEntryId) continue // skip products not in the pricebook
 
           const smFields = item.sellingModel ? deriveSellingModelFields(item.sellingModel) : {}
+          // #region agent log
+          fetch('http://127.0.0.1:7258/ingest/0dd5df41-39a7-4ccf-bd52-e652c1f11bd8',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'0aca30'},body:JSON.stringify({sessionId:'0aca30',runId:'post-fix-F',hypothesisId:'F',location:'usePlaceSalesTransaction.ts:smFields',message:'smFields derived',data:{productId:item.productId,sellingModel:item.sellingModel,smFields},timestamp:Date.now()})}).catch(()=>{});
+          // #endregion
           const lineRecord: Record<string, unknown> = {
             attributes: { type: 'QuoteLineItem', method: 'POST' },
             QuoteId: '@{refQuote.id}',
@@ -137,6 +140,9 @@ export function usePlaceSalesTransaction() {
             PeriodBoundary: 'Anniversary',
           }
 
+          // #region agent log
+          fetch('http://127.0.0.1:7258/ingest/0dd5df41-39a7-4ccf-bd52-e652c1f11bd8',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'0aca30'},body:JSON.stringify({sessionId:'0aca30',runId:'post-fix-F',hypothesisId:'F',location:'usePlaceSalesTransaction.ts:lineRecord',message:'lineRecord built',data:{refId:`refQuoteLine${lineIndex}`,BillingFrequency:(lineRecord as Record<string,unknown>).BillingFrequency,SellingModelType:(lineRecord as Record<string,unknown>).SellingModelType,pricebookEntryId},timestamp:Date.now()})}).catch(()=>{});
+          // #endregion
           records.push({ referenceId: `refQuoteLine${lineIndex}`, record: lineRecord })
           lineIndex++
         }
@@ -216,27 +222,26 @@ function deriveSellingModelFields(name: string): Record<string, string> {
   if (lower.includes('one time') || lower.includes('onetime')) {
     return { SellingModelType: 'OneTime' }
   }
-  const fields: Record<string, string> = {}
-  if (lower.includes('term')) fields.SellingModelType = 'TermDefined'
-  // if (lower.includes('monthly')) {
-  //   fields.BillingFrequency = 'Monthly'
-  //   fields.PricingTermUnit = 'Months'
-  //   fields.SubscriptionTermUnit = 'Months'
-  // } else if (lower.includes('annual')) {
-  //   fields.BillingFrequency = 'Annual'
-  //   fields.PricingTermUnit = 'Annual'
-  //   fields.SubscriptionTermUnit = 'Annual'
-  // }
-  return fields
+  // Do not explicitly set SellingModelType for term/evergreen selling models —
+  // Salesforce derives it from the PricebookEntry. Setting it explicitly without
+  // BillingFrequency causes FIELD_INTEGRITY_EXCEPTION on some products.
+  return {}
 }
 
 function extractQuoteId(data: unknown): string | null {
-  // PST response: { graphs: [{ graphId, isSuccessful, graphResponse: { compositeResponse: [...] } }] }
-  // or direct: { compositeResponse: [...] }
+  // PST response shapes:
+  //   flat:      { salesTransactionId, isSuccess, ... }
+  //   graphs:    { graphs: [{ graphResponse: { compositeResponse: [...] } }] }
+  //   composite: { compositeResponse: [...] }
   try {
     const d = data as Record<string, unknown>
 
-    // Unwrap graphs array if present
+    // Flat response (most common on this org)
+    if (typeof d['salesTransactionId'] === 'string' && d['salesTransactionId']) {
+      return d['salesTransactionId']
+    }
+
+    // Graph / composite response
     const graphs = d['graphs']
     const composite = graphs
       ? ((graphs as { graphResponse?: { compositeResponse?: unknown[] } }[])[0]?.graphResponse

@@ -56,6 +56,16 @@
   cursor: not-allowed;
 }
 
+.revertBtn {
+  border-color: var(--fc-border);
+  background: var(--fc-surface);
+  color: var(--fc-text);
+}
+
+.revertBtn:hover {
+  background: var(--fc-page-bg);
+}
+
 .btnIcon {
   padding: 4px 8px;
   border: 1px solid var(--fc-border);
@@ -216,4 +226,29 @@
   border-color: var(--fc-accent);
   color: var(--fc-accent);
   background: var(--fc-accent-muted);
+}
+
+.sectionToggle {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 6px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font-size: inherit;
+  font-family: inherit;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.chevron {
+  display: inline-block;
+  font-style: normal;
+  transform: rotate(0deg);
+  transition: transform 0.15s ease;
+}
+
+.chevronOpen {
+  transform: rotate(90deg);
 }

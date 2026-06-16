@@ -386,3 +386,48 @@
   border-color: #fca5a5;
   background: #fff0f0;
 }
+
+.revertBtn {
+  padding: 7px 14px;
+  border: 1px solid var(--fc-border);
+  border-radius: var(--fc-radius-sm);
+  background: var(--fc-surface);
+  color: var(--fc-text);
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.revertBtn:hover:not(:disabled) {
+  background: var(--fc-page-bg);
+}
+
+.revertBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.sectionToggle {
+  display: inline-flex;
+  align-items: center;
+  margin-left: auto;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font-size: inherit;
+  font-family: inherit;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.chevron {
+  display: inline-block;
+  font-style: normal;
+  transform: rotate(0deg);
+  transition: transform 0.15s ease;
+}
+
+.chevronOpen {
+  transform: rotate(90deg);
+}

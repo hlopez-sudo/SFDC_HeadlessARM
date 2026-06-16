@@ -48,6 +48,27 @@
   margin-bottom: 12px;
 }
 
+.assetActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.assetActionBtn {
+  border: 1px solid var(--fc-border);
+  background: var(--fc-surface);
+  color: var(--fc-text);
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: var(--fc-radius-sm);
+  padding: 4px 10px;
+  cursor: pointer;
+}
+
+.assetActionBtn:hover {
+  background: var(--fc-page-bg);
+}
+
 .cardTitle {
   font-size: 11px;
   font-weight: 600;
@@ -115,6 +136,22 @@
 .td:last-child,
 .th:last-child {
   text-align: right;
+}
+
+.selectCol {
+  width: 68px;
+  text-align: center;
+}
+
+.selectCell {
+  text-align: center;
+}
+
+.rowCheckbox {
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+  accent-color: var(--fc-accent, #0969da);
 }
 
 .emptyRow {

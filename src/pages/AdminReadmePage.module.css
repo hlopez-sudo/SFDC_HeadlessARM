@@ -1,35 +1,28 @@
-.intro {
-  margin: 0 0 24px;
+.card {
+  margin-bottom: 20px;
   max-width: 52rem;
-  color: var(--fc-text-muted);
-  font-size: 14px;
-  line-height: 1.5;
+  padding: 20px 24px;
+  border: 1px solid var(--fc-border);
+  border-radius: var(--fc-radius);
+  background: var(--fc-surface);
 }
 
-.section {
-  margin-bottom: 28px;
-  max-width: 52rem;
-}
-
-.sectionTitle {
+.cardTitle {
   font-size: 15px;
   font-weight: 600;
+  margin: 0 0 14px;
+  color: var(--fc-text);
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--fc-border-light);
+}
+
+.body {
   margin: 0 0 12px;
-  color: var(--fc-text);
-}
-
-.list {
-  margin: 0;
-  padding-left: 20px;
-  color: var(--fc-text);
+  color: var(--fc-text-muted);
   font-size: 14px;
-  line-height: 1.65;
+  line-height: 1.6;
 }
 
-.list li {
-  margin-bottom: 10px;
-}
-
-.list li:last-child {
+.body:last-child {
   margin-bottom: 0;
 }

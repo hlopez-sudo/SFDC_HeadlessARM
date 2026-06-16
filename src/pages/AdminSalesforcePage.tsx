@@ -429,8 +429,10 @@ function HeadlessPricingConfigSection() {
   const { orgInfo } = useSalesforceConfig()
   const apiVersion = orgInfo.apiVersion || '62.0'
 
+  const [isExpanded, setIsExpanded] = useState(true)
   const [local_, setLocal] = useState<HeadlessPricingConfig>(config)
   const [saved, setSaved] = useState(false)
+  const [reverting, setReverting] = useState(false)
   const [lookupMeta, setLookupMeta] = useState<LookupMeta>(loadLookupMeta)
 
   useEffect(() => {
@@ -467,17 +469,79 @@ function HeadlessPricingConfigSection() {
     setSaved(true)
   }
 
+  async function revertToDefaults() {
+    setReverting(true)
+    const base = `/api/salesforce/services/data/v${apiVersion}/query?q=`
+    const queries = [
+      fetch(base + encodeURIComponent(
+        `SELECT Id, DeveloperName, Description FROM ContextDefinition WHERE DeveloperName = 'RLM_SalesTransactionContext' LIMIT 1`
+      )),
+      fetch(base + encodeURIComponent(
+        `SELECT Id, Description, ContextDefinitionVersionId, ContextDefinitionVersion.ContextDefinition.DeveloperName FROM ContextMapping WHERE Description = 'Mapping to map entities related to pricing elements' LIMIT 1`
+      )),
+      fetch(base + encodeURIComponent(
+        `SELECT DeveloperName FROM ExpressionSetDefinition WHERE DeveloperName = 'RLM_DefaultPricingProcedure' LIMIT 1`
+      )),
+      fetch(base + encodeURIComponent(
+        `SELECT Id FROM Pricebook2 WHERE IsStandard = true AND IsActive = true LIMIT 1`
+      )),
+    ]
+
+    const results = await Promise.allSettled(queries.map(async (p) => {
+      const res = await p
+      return res.ok ? (await res.json()) as { records: Record<string, unknown>[] } : null
+    }))
+
+    const [ctxDef, ctxMap, pricingProc, pricebook] = results
+
+    const patch: Partial<HeadlessPricingConfig> = { skipDiscovery: true }
+
+    if (ctxDef.status === 'fulfilled' && ctxDef.value?.records?.[0]) {
+      const rec = ctxDef.value.records[0]
+      patch.contextDefinitionId = rec['Id'] as string
+      setMeta('contextDefinitionId', rec, ['Id', 'DeveloperName', 'Description'])
+    }
+    if (ctxMap.status === 'fulfilled' && ctxMap.value?.records?.[0]) {
+      const rec = ctxMap.value.records[0]
+      patch.contextMappingId = rec['Id'] as string
+      setMeta('contextMappingId', rec, [
+        'Id',
+        'Description',
+        'ContextDefinitionVersionId',
+        'ContextDefinitionVersion.ContextDefinition.DeveloperName',
+      ])
+    }
+    if (pricingProc.status === 'fulfilled' && pricingProc.value?.records?.[0]) {
+      patch.pricingProcedureId = pricingProc.value.records[0]['DeveloperName'] as string
+    }
+    if (pricebook.status === 'fulfilled' && pricebook.value?.records?.[0]) {
+      patch.pricebookId = pricebook.value.records[0]['Id'] as string
+    }
+
+    setLocal((prev) => ({ ...prev, ...patch }))
+    setSaved(false)
+    setReverting(false)
+  }
+
   return (
     <div className={local.card}>
-      <div className={local.configCardHeader}>
+      <div className={local.configCardHeader} style={{ marginBottom: isExpanded ? 12 : 0 }}>
         <p className={local.cardTitle}>Headless Pricing Configuration</p>
         {isComplete
           ? <span className={local.badgeOk}><CheckCircle size={12} /> Active</span>
           : <span className={local.badgeOff}>Not configured — product detail pages will use /connect/pricing</span>
         }
+        <button
+          type="button"
+          className={local.sectionToggle}
+          onClick={() => setIsExpanded((o) => !o)}
+          aria-expanded={isExpanded}
+        >
+          <span className={`${local.chevron} ${isExpanded ? local.chevronOpen : ''}`}>▸</span>
+        </button>
       </div>
 
-      <p className={styles.muted}>
+      {isExpanded && <><p className={styles.muted}>
         IDs saved here are used by every product detail page to call{' '}
         <code className={local.inlineCode}>runSalesforceHeadlessPricing</code>. Optional fields (for
         example <code className={local.inlineCode}>discoveryProcedure</code>) are merged into the
@@ -672,8 +736,17 @@ function HeadlessPricingConfigSection() {
           <Save size={14} />
           Save configuration
         </button>
+        <button
+          type="button"
+          className={local.revertBtn}
+          onClick={() => { void revertToDefaults() }}
+          disabled={reverting}
+        >
+          {reverting ? 'Loading…' : 'Revert to Defaults'}
+        </button>
         {saved && <span className={local.savedHint}>Saved</span>}
       </div>
+      </>}
     </div>
   )
 }
