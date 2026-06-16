@@ -24,8 +24,8 @@ npm --version
 ## 1. Clone & Install
 
 ```bash
-git clone https://github.com/hlopez-sudo/ARM_Headless360.git
-cd ARM_Headless360
+git clone https://github.com/hlopez-sudo/SFDC_HeadlessARM.git
+cd SFDC_HeadlessARM
 npm install
 ```
 
