@@ -25,7 +25,11 @@ npm --version
 
 ```bash
 git clone https://github.com/hlopez-sudo/SFDC_HeadlessARM.git
+```
+```bash
 cd SFDC_HeadlessARM
+```
+```bash
 npm install
 ```
 
