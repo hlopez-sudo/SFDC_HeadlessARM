@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
-import { ChevronDown, ChevronRight, LayoutDashboard, Package, Settings, ShoppingCart, UserPlus } from 'lucide-react'
+import { ChevronDown, ChevronRight, FileText, LayoutDashboard, Package, Settings, ShoppingCart, UserPlus } from 'lucide-react'
 import { useQuoteCart } from '../../quote/QuoteCartContext'
 import { useOrderCart } from '../../quote/OrderCartContext'
 import { useSiteBranding } from '../../branding/SiteBrandingContext'
@@ -51,19 +51,20 @@ export function Sidebar() {
                 Products
               </NavLink>
 
-              <div className={styles.subList}>
-                <NavLink
-                  to="/quotes"
-                  className={({ isActive }) =>
-                    `${styles.subItem} ${isActive ? styles.subItemActive : ''}`
-                  }
-                >
-                  Quotes
-                  {items.length > 0 && (
-                    <span className={styles.cartBadge}>{items.length}</span>
-                  )}
-                </NavLink>
-              </div>
+              <NavLink
+                to="/quotes"
+                className={({ isActive }) =>
+                  `${styles.row} ${isActive ? styles.rowActive : ''}`
+                }
+              >
+                <span className={styles.iconWrap}>
+                  <FileText size={18} strokeWidth={2} aria-hidden />
+                </span>
+                Quotes
+                {items.length > 0 && (
+                  <span className={styles.cartBadge}>{items.length}</span>
+                )}
+              </NavLink>
 
               <NavLink
                 to="/cart"
