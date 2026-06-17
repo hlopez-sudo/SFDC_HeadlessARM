@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { TopNav } from '../navigation/TopNav'
 import { Sidebar } from '../navigation/Sidebar'
 import { QuoteCartModal } from '../quote/QuoteCartModal'
+import { OrderCartDrawer } from '../quote/OrderCartDrawer'
 import { TrialDrawer } from '../quote/TrialDrawer'
 import { BuyNowDrawer } from '../quote/BuyNowDrawer'
 import styles from './AppShell.module.css'
@@ -19,6 +20,7 @@ export function AppShell({ children }: AppShellProps) {
         <main className={styles.main}>{children}</main>
       </div>
       <QuoteCartModal />
+      <OrderCartDrawer />
       <TrialDrawer />
       <BuyNowDrawer />
     </div>

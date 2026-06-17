@@ -1,6 +1,8 @@
 import { useCallback, useRef, useState } from 'react'
 import { useSalesforceConfig } from '../salesforce/SalesforceConfigContext'
 import { useHeadlessPricingConfig } from '../salesforce/HeadlessPricingConfigContext'
+import type { LifecycleStep } from './useBuyNow'
+import type { OrderCartItem } from './OrderCartContext'
 
 const ACTIVE_ACCOUNT_KEY = 'fc-active-account'
 
@@ -25,17 +27,7 @@ function loadActiveAccount(): ActiveAccount | null {
   }
 }
 
-export type LifecycleStep = {
-  name: string
-  status: 'pending' | 'running' | 'done' | 'error'
-  method?: string
-  url?: string
-  requestBody?: unknown
-  response?: unknown
-  error?: string
-}
-
-export type BuyNowState = {
+export type OrderCartState = {
   status: 'idle' | 'loading' | 'success' | 'error'
   loadingStep: string | null
   orderId: string | null
@@ -46,7 +38,7 @@ export type BuyNowState = {
   lifecycleSteps: LifecycleStep[]
 }
 
-const IDLE: BuyNowState = {
+const IDLE: OrderCartState = {
   status: 'idle',
   loadingStep: null,
   orderId: null,
@@ -70,22 +62,30 @@ type AccountAddress = {
   ShippingCountry: string | null
 }
 
-export function useBuyNow() {
+export function usePlaceOrder() {
   const { orgInfo } = useSalesforceConfig()
   const { config } = useHeadlessPricingConfig()
-  const [state, setState] = useState<BuyNowState>(IDLE)
+  const [state, setState] = useState<OrderCartState>(IDLE)
 
-  // Ref to hold the mutable steps array during a run so we can update individual steps
   const stepsRef = useRef<LifecycleStep[]>([])
 
   const submit = useCallback(
-    async (productId: string, sellingModel: string, quantity: number = 1, sellingModelId?: string) => {
+    async (items: OrderCartItem[]) => {
       const pricebookId = config.pricebookId.trim()
       if (!pricebookId) {
         setState({
           ...IDLE,
           status: 'error',
           error: 'Pricebook ID is not configured. Set it in Admin → Salesforce → Headless Pricing Config.',
+        })
+        return
+      }
+
+      if (!items.length) {
+        setState({
+          ...IDLE,
+          status: 'error',
+          error: 'Your cart is empty. Add at least one product before submitting an order.',
         })
         return
       }
@@ -106,10 +106,7 @@ export function useBuyNow() {
       const apiVersion = orgInfo.apiVersion || '67.0'
       const accountId = account.accountId
 
-      const smLower = sellingModel.toLowerCase()
-      const billingPeriod: 'monthly' | 'annual' = smLower.includes('annual') ? 'annual' : 'monthly'
-
-      // Buy Now: 1-year term (createRLMOrder parity) → end = start + 1 year − 1 day
+      // Order: 1-year term (createRLMOrder parity) → end = start + 1 year − 1 day
       const today = new Date()
       const startDate = today.toISOString().split('T')[0]
       const endDateObj = new Date(today)
@@ -142,7 +139,7 @@ export function useBuyNow() {
       }
 
       try {
-        // ── Pre-flight SOQLs ─────────────────────────────────────────────────
+        // ── Pre-flight SOQLs (account-level, once) ───────────────────────────
 
         setLoadingStep('Looking up account address…')
         const accountSoql =
@@ -166,69 +163,106 @@ export function useBuyNow() {
           : { records: [] }
         const contactId = contactData.records[0]?.Id ?? null
 
-        setLoadingStep('Looking up pricebook entry…')
-        const pbSoql =
-          `SELECT Id, UnitPrice, ProductSellingModelId FROM PricebookEntry ` +
-          `WHERE Product2Id = '${productId}' AND Pricebook2Id = '${pricebookId}' AND IsActive = true ` +
-          `ORDER BY UnitPrice ASC`
-        const pbRes = await fetch(
-          `/api/salesforce/services/data/v${apiVersion}/query?q=${encodeURIComponent(pbSoql)}`,
-        )
-        if (!pbRes.ok) throw new Error(`PricebookEntry lookup failed: HTTP ${pbRes.status}`)
-        const pbData = (await pbRes.json()) as {
-          records: { Id: string; UnitPrice: number; ProductSellingModelId?: string | null }[]
-        }
-        if (!pbData.records.length) {
-          throw new Error('No active PricebookEntry found for this product. Check the Pricebook ID in Admin → Salesforce.')
-        }
-        // Bind the line to the selected selling model via its PricebookEntry
-        // (OrderItem.ProductSellingModelId is FLS-restricted for the integration user).
-        const pbBySellingModel = sellingModelId
-          ? pbData.records.find((r) => r.ProductSellingModelId === sellingModelId)
-          : undefined
-        const pbEntry =
-          pbBySellingModel ??
-          (billingPeriod === 'annual' && pbData.records.length > 1
-            ? pbData.records[pbData.records.length - 1]
-            : pbData.records[0])
-        const pricebookEntryId = pbEntry.Id
-        const unitPrice = pbEntry.UnitPrice ?? 0
+        // ── Per-line lookups: build one OrderItem record per cart item ───────
 
-        setLoadingStep('Looking up billing frequency…')
-        const psmSoql =
-          `SELECT Id, ProductSellingModelId, ProductSellingModel.Name, ProductSellingModel.PricingTermUnit, ProductSellingModel.SellingModelType ` +
-          `FROM ProductSellingModelOption WHERE Product2Id = '${productId}'`
-        const psmRes = await fetch(
-          `/api/salesforce/services/data/v${apiVersion}/query?q=${encodeURIComponent(psmSoql)}`,
-        )
-        let billingFrequency = billingPeriod === 'annual' ? 'Annual' : 'Monthly'
-        let sellingModelType: string | undefined
-        if (psmRes.ok) {
-          const psmData = (await psmRes.json()) as {
-            records: { ProductSellingModelId?: string; ProductSellingModel?: { Name?: string; PricingTermUnit?: string; SellingModelType?: string } }[]
+        const orderItemRecords: { referenceId: string; record: Record<string, unknown> }[] = []
+        let lineIndex = 0
+        for (const item of items) {
+          const productId = item.productId
+          const quantity = item.quantity
+          const sellingModelId = item.sellingModelId
+          const sellingModel = item.sellingModel
+          const smLower = (sellingModel ?? '').toLowerCase()
+          const billingPeriod: 'monthly' | 'annual' = smLower.includes('annual') ? 'annual' : 'monthly'
+
+          setLoadingStep(`Looking up pricebook entry (${item.productName})…`)
+          const pbSoql =
+            `SELECT Id, UnitPrice, ProductSellingModelId FROM PricebookEntry ` +
+            `WHERE Product2Id = '${productId}' AND Pricebook2Id = '${pricebookId}' AND IsActive = true ` +
+            `ORDER BY UnitPrice ASC`
+          const pbRes = await fetch(
+            `/api/salesforce/services/data/v${apiVersion}/query?q=${encodeURIComponent(pbSoql)}`,
+          )
+          if (!pbRes.ok) throw new Error(`PricebookEntry lookup failed: HTTP ${pbRes.status}`)
+          const pbData = (await pbRes.json()) as {
+            records: { Id: string; UnitPrice: number; ProductSellingModelId?: string | null }[]
           }
-          const targetUnit = billingPeriod === 'annual' ? 'Annual' : 'Months'
-          // Prefer the record matching the selected selling model id, then name, then billing-period unit
-          const byId = sellingModelId
-            ? psmData.records.find((r) => r.ProductSellingModelId === sellingModelId)
+          if (!pbData.records.length) {
+            throw new Error(`No active PricebookEntry found for ${item.productName}. Check the Pricebook ID in Admin → Salesforce.`)
+          }
+          // Bind the line to the selected selling model via its PricebookEntry
+          // (OrderItem.ProductSellingModelId is FLS-restricted for the integration user).
+          const pbBySellingModel = sellingModelId
+            ? pbData.records.find((r) => r.ProductSellingModelId === sellingModelId)
             : undefined
-          const byName = psmData.records.find((r) => r.ProductSellingModel?.Name === sellingModel)
-          const match =
-            byId ?? byName ?? psmData.records.find((r) => r.ProductSellingModel?.PricingTermUnit === targetUnit)
-          const resolvedUnit =
-            match?.ProductSellingModel?.PricingTermUnit ??
-            psmData.records[0]?.ProductSellingModel?.PricingTermUnit
-          billingFrequency = resolvedUnit === 'Annual' ? 'Annual' : 'Monthly'
-          sellingModelType = match?.ProductSellingModel?.SellingModelType
+          const pbEntry =
+            pbBySellingModel ??
+            (billingPeriod === 'annual' && pbData.records.length > 1
+              ? pbData.records[pbData.records.length - 1]
+              : pbData.records[0])
+          const pricebookEntryId = pbEntry.Id
+          const unitPrice = pbEntry.UnitPrice ?? 0
+
+          setLoadingStep(`Looking up billing frequency (${item.productName})…`)
+          const psmSoql =
+            `SELECT Id, ProductSellingModelId, ProductSellingModel.Name, ProductSellingModel.PricingTermUnit, ProductSellingModel.SellingModelType ` +
+            `FROM ProductSellingModelOption WHERE Product2Id = '${productId}'`
+          const psmRes = await fetch(
+            `/api/salesforce/services/data/v${apiVersion}/query?q=${encodeURIComponent(psmSoql)}`,
+          )
+          let billingFrequency = billingPeriod === 'annual' ? 'Annual' : 'Monthly'
+          let sellingModelType: string | undefined
+          if (psmRes.ok) {
+            const psmData = (await psmRes.json()) as {
+              records: { ProductSellingModelId?: string; ProductSellingModel?: { Name?: string; PricingTermUnit?: string; SellingModelType?: string } }[]
+            }
+            const targetUnit = billingPeriod === 'annual' ? 'Annual' : 'Months'
+            // Prefer the record matching the selected selling model id, then name, then billing-period unit
+            const byId = sellingModelId
+              ? psmData.records.find((r) => r.ProductSellingModelId === sellingModelId)
+              : undefined
+            const byName = psmData.records.find((r) => r.ProductSellingModel?.Name === sellingModel)
+            const match =
+              byId ?? byName ?? psmData.records.find((r) => r.ProductSellingModel?.PricingTermUnit === targetUnit)
+            const resolvedUnit =
+              match?.ProductSellingModel?.PricingTermUnit ??
+              psmData.records[0]?.ProductSellingModel?.PricingTermUnit
+            billingFrequency = resolvedUnit === 'Annual' ? 'Annual' : 'Monthly'
+            sellingModelType = match?.ProductSellingModel?.SellingModelType
+          }
+          const pricingTermCount = billingFrequency === 'Monthly' ? 12 : 1
+          const smTypeLower = (sellingModelType ?? '').toLowerCase()
+          // One-Time products must NOT carry any recurring fields (BillingFrequency2, PeriodBoundary, etc.)
+          const isOneTime =
+            smTypeLower === 'onetime' || smLower.includes('one-time') || smLower.includes('onetime')
+          // Evergreen order products must NOT carry an EndDate (Salesforce INVALID_INPUT otherwise)
+          const isEvergreen = smTypeLower === 'evergreen' || smLower.includes('evergreen')
+
+          const orderItemRecord: Record<string, unknown> = {
+            attributes: { method: 'POST', type: 'OrderItem' },
+            OrderId: '@{refOrder.id}',
+            Product2Id: productId,
+            PricebookEntryId: pricebookEntryId,
+            Quantity: quantity,
+            UnitPrice: unitPrice,
+            NetUnitPrice: unitPrice,
+            TotalLineAmount: unitPrice * quantity,
+            ...(isOneTime
+              ? {}
+              : {
+                  PricingTermCount: pricingTermCount,
+                  SubscriptionTerm: 1,
+                  ServiceDate: startDate,
+                  ...(isEvergreen ? {} : { EndDate: endDate }),
+                  PeriodBoundary: 'Anniversary',
+                  BillingFrequency2: billingFrequency,
+                }),
+          }
+          orderItemRecords.push({ referenceId: `refOrderItem${lineIndex}`, record: orderItemRecord })
+          lineIndex++
         }
-        const pricingTermCount = billingFrequency === 'Monthly' ? 12 : 1
-        const smTypeLower = (sellingModelType ?? '').toLowerCase()
-        // One-Time products must NOT carry any recurring fields (BillingFrequency2, PeriodBoundary, etc.)
-        const isOneTime =
-          smTypeLower === 'onetime' || smLower.includes('one-time') || smLower.includes('onetime')
-        // Evergreen order products must NOT carry an EndDate (Salesforce INVALID_INPUT otherwise)
-        const isEvergreen = smTypeLower === 'evergreen' || smLower.includes('evergreen')
-        // ── Step 1: Place Sales Transaction (Salesforce-priced) ──────────────
+
+        // ── Step 1: Place Sales Transaction (one Order + N OrderItems) ───────
 
         setLoadingStep('Creating order…')
         const orderRecord: Record<string, unknown> = {
@@ -249,26 +283,6 @@ export function useBuyNow() {
           ShippingPostalCode: addr.ShippingPostalCode ?? addr.BillingPostalCode ?? '',
           ShippingCountry: addr.ShippingCountry ?? addr.BillingCountry ?? '',
         }
-        const orderItemRecord: Record<string, unknown> = {
-          attributes: { method: 'POST', type: 'OrderItem' },
-          OrderId: '@{refOrder.id}',
-          Product2Id: productId,
-          PricebookEntryId: pricebookEntryId,
-          Quantity: quantity,
-          UnitPrice: unitPrice,
-          NetUnitPrice: unitPrice,
-          TotalLineAmount: unitPrice * quantity,
-          ...(isOneTime
-            ? {}
-            : {
-                PricingTermCount: pricingTermCount,
-                SubscriptionTerm: 1,
-                ServiceDate: startDate,
-                ...(isEvergreen ? {} : { EndDate: endDate }),
-                PeriodBoundary: 'Anniversary',
-                BillingFrequency2: billingFrequency,
-              }),
-        }
         const pstBody: Record<string, unknown> = {
           pricingPref: 'System',
           catalogRatesPref: 'Fetch',
@@ -283,16 +297,16 @@ export function useBuyNow() {
           },
           taxPref: 'Skip',
           graph: {
-            graphId: 'createBuyNowOrder',
+            graphId: 'createCartOrder',
             records: [
               { referenceId: 'refOrder', record: orderRecord },
-              { referenceId: 'refOrderItem', record: orderItemRecord },
+              ...orderItemRecords,
             ],
           },
         }
         const pstUrl = `/api/salesforce/services/data/v${apiVersion}/connect/rev/sales-transaction/actions/place`
-        console.log('[BuyNow] PST URL:', pstUrl)
-        console.log('[BuyNow] PST body:', JSON.stringify(pstBody, null, 2))
+        console.log('[PlaceOrder] PST URL:', pstUrl)
+        console.log('[PlaceOrder] PST body:', JSON.stringify(pstBody, null, 2))
 
         const pstRes = await fetch(pstUrl, {
           method: 'POST',
@@ -300,10 +314,10 @@ export function useBuyNow() {
           body: JSON.stringify(pstBody),
         })
         const pstData = (await pstRes.json()) as unknown
-        console.log('[BuyNow] PST response status:', pstRes.status)
+        console.log('[PlaceOrder] PST response status:', pstRes.status)
 
         if (!pstRes.ok) {
-          console.error('[BuyNow] PST error:', JSON.stringify(pstData, null, 2))
+          console.error('[PlaceOrder] PST error:', JSON.stringify(pstData, null, 2))
           let msg = `Request failed: HTTP ${pstRes.status}`
           if (Array.isArray(pstData) && (pstData[0] as { message?: string })?.message) {
             msg = (pstData[0] as { message: string }).message
@@ -315,7 +329,7 @@ export function useBuyNow() {
 
         const orderId = extractOrderId(pstData)
         if (!orderId) throw new Error('No order ID returned from Place Sales Transaction API')
-        console.log('[BuyNow] Order created:', orderId)
+        console.log('[PlaceOrder] Order created:', orderId)
 
         // Save PST result into state (still loading — lifecycle steps follow)
         setState((prev) => ({
@@ -324,19 +338,19 @@ export function useBuyNow() {
           apiResponse: pstData,
           requestUrl: pstUrl,
           requestBody: pstBody,
-          loadingStep: 'Looking up order item…',
+          loadingStep: 'Looking up order items…',
         }))
 
-        // ── Step 2: Get OrderItem ID ─────────────────────────────────────────
+        // ── Step 2: Get all OrderItem IDs ────────────────────────────────────
 
-        const oiSoql = `SELECT Id FROM OrderItem WHERE OrderId = '${orderId}' LIMIT 1`
+        const oiSoql = `SELECT Id FROM OrderItem WHERE OrderId = '${orderId}'`
         const oiRes = await fetch(
           `/api/salesforce/services/data/v${apiVersion}/query?q=${encodeURIComponent(oiSoql)}`,
         )
         if (!oiRes.ok) throw new Error(`OrderItem lookup failed: HTTP ${oiRes.status}`)
         const oiData = (await oiRes.json()) as { records: { Id: string }[] }
-        if (!oiData.records.length) throw new Error('OrderItem not found after order creation')
-        const orderItemId = oiData.records[0].Id
+        if (!oiData.records.length) throw new Error('OrderItem(s) not found after order creation')
+        const orderItemIds = oiData.records.map((r) => r.Id)
 
         // ── Step 3: Create OrderAction ───────────────────────────────────────
 
@@ -357,28 +371,35 @@ export function useBuyNow() {
         }
         const orderActionId = (oaData as { id?: string }).id ?? ''
         patchStep(oaIdx, { status: 'done', response: oaData })
-        console.log('[BuyNow] OrderAction created:', orderActionId)
+        console.log('[PlaceOrder] OrderAction created:', orderActionId)
 
-        // ── Step 4: Patch OrderItem with OrderActionId ───────────────────────
+        // ── Step 4: Patch every OrderItem with OrderActionId ─────────────────
 
-        const oiPatchUrl = `/api/salesforce/services/data/v${apiVersion}/sobjects/OrderItem/${orderItemId}`
-        const oiPatchBody = { OrderActionId: orderActionId }
-        const oiPatchIdx = addStep({ name: 'Link OrderItem → OrderAction', status: 'running', method: 'PATCH', url: oiPatchUrl, requestBody: oiPatchBody })
-        setLoadingStep('Linking OrderItem…')
-
-        const oiPatchRes = await fetch(oiPatchUrl, {
+        const oiPatchIdx = addStep({
+          name: `Link OrderItem${orderItemIds.length > 1 ? 's' : ''} → OrderAction`,
+          status: 'running',
           method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(oiPatchBody),
+          url: `/api/salesforce/services/data/v${apiVersion}/sobjects/OrderItem/{id}`,
+          requestBody: { OrderActionId: orderActionId },
         })
-        // PATCH returns 204 No Content on success
-        if (!oiPatchRes.ok && oiPatchRes.status !== 204) {
-          const errText = await oiPatchRes.text()
-          patchStep(oiPatchIdx, { status: 'error', error: `HTTP ${oiPatchRes.status}: ${errText}` })
-          throw new Error(`OrderItem patch failed: HTTP ${oiPatchRes.status}`)
+        setLoadingStep('Linking OrderItems…')
+
+        for (const orderItemId of orderItemIds) {
+          const oiPatchUrl = `/api/salesforce/services/data/v${apiVersion}/sobjects/OrderItem/${orderItemId}`
+          const oiPatchRes = await fetch(oiPatchUrl, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ OrderActionId: orderActionId }),
+          })
+          // PATCH returns 204 No Content on success
+          if (!oiPatchRes.ok && oiPatchRes.status !== 204) {
+            const errText = await oiPatchRes.text()
+            patchStep(oiPatchIdx, { status: 'error', error: `HTTP ${oiPatchRes.status}: ${errText}` })
+            throw new Error(`OrderItem patch failed: HTTP ${oiPatchRes.status}`)
+          }
         }
-        patchStep(oiPatchIdx, { status: 'done', response: { status: oiPatchRes.status } })
-        console.log('[BuyNow] OrderItem linked to OrderAction')
+        patchStep(oiPatchIdx, { status: 'done', response: { linked: orderItemIds.length } })
+        console.log('[PlaceOrder] OrderItems linked to OrderAction:', orderItemIds.length)
 
         // ── Step 5: Create AppUsageAssignment ───────────────────────────────
 
@@ -398,9 +419,9 @@ export function useBuyNow() {
           throw new Error(`AppUsageAssignment creation failed: HTTP ${auaRes.status}`)
         }
         patchStep(auaIdx, { status: 'done', response: auaData })
-        console.log('[BuyNow] AppUsageAssignment created')
+        console.log('[PlaceOrder] AppUsageAssignment created')
 
-        // 2-second processing delay (same as Start Trial)
+        // 2-second processing delay (same as Buy Now / Start Trial)
         await new Promise((resolve) => setTimeout(resolve, 2000))
 
         // ── Step 6: Activate Order (up to 3 retries) ────────────────────────
@@ -432,7 +453,7 @@ export function useBuyNow() {
             activated = true
             break
           }
-          console.warn(`[BuyNow] Activation attempt ${attempt} failed:`, errText)
+          console.warn(`[PlaceOrder] Activation attempt ${attempt} failed:`, errText)
         }
 
         if (!activated) {
@@ -440,7 +461,7 @@ export function useBuyNow() {
           throw new Error('Order could not be activated after 3 attempts')
         }
         patchStep(actIdx, { status: 'done', response: lastActResponse })
-        console.log('[BuyNow] Order activated:', orderId)
+        console.log('[PlaceOrder] Order activated:', orderId)
 
         // ── All done ─────────────────────────────────────────────────────────
 
