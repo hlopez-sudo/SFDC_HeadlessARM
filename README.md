@@ -47,8 +47,9 @@ No `.env` file is required. Salesforce authentication is handled entirely in-bro
 
 1. Open the app at `http://localhost:5173`
 2. Navigate to **Administration → Salesforce**
-3. Enter your org login URL — e.g. `https://login.salesforce.com` for production, or your sandbox/scratch org URL
-4. Click **Log In** — a new browser tab opens for OAuth approval. After you approve, Salesforce redirects back to the app automatically
+3. Select Production or Sandbox - Click **Connect with Salesforce** — a new browser tab opens for OAuth approval. After you approve, Salesforce redirects back to the app automatically
+4. Or Enter your org login URL — e.g. `https://login.salesforce.com` for production, or your sandbox/scratch org URL
+
 
 > **Port 1717 note:** The OAuth callback server listens on port `1717` — the same redirect URI pre-registered by Salesforce PlatformCLI and the Salesforce VS Code extension. If that port is already occupied, quit the Salesforce CLI (`sf` / `sfdx`) and the VS Code Salesforce extension, then retry.
 
