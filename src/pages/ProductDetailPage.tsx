@@ -316,25 +316,6 @@ export function ProductDetailPage() {
                 type="button"
                 className={styles.btnOutline}
                 onClick={() => {
-                  addItem({
-                    productId: catalogProduct.sfProductId,
-                    productName: catalogProduct.name,
-                    quantity: committedQuantity,
-                    sellingModel,
-                    sellingModelId: selectedSellingModelId,
-                    unitPrice: pricing.status === 'ok' ? pricing.record.netUnitPrice : 0,
-                    lineTotal: pricing.status === 'ok' ? pricing.record.subtotal : 0,
-                    currencyIsoCode: pricing.status === 'ok' ? pricing.record.currencyIsoCode : 'USD',
-                  })
-                  openModal()
-                }}
-              >
-                Add to Quote
-              </button>
-              <button
-                type="button"
-                className={styles.btnOutline}
-                onClick={() => {
                   addOrderItem({
                     productId: catalogProduct.sfProductId,
                     productName: catalogProduct.name,
@@ -349,6 +330,25 @@ export function ProductDetailPage() {
                 }}
               >
                 Add to Cart
+              </button>
+              <button
+                type="button"
+                className={styles.btnOutline}
+                onClick={() => {
+                  addItem({
+                    productId: catalogProduct.sfProductId,
+                    productName: catalogProduct.name,
+                    quantity: committedQuantity,
+                    sellingModel,
+                    sellingModelId: selectedSellingModelId,
+                    unitPrice: pricing.status === 'ok' ? pricing.record.netUnitPrice : 0,
+                    lineTotal: pricing.status === 'ok' ? pricing.record.subtotal : 0,
+                    currencyIsoCode: pricing.status === 'ok' ? pricing.record.currencyIsoCode : 'USD',
+                  })
+                  openModal()
+                }}
+              >
+                Add to Quote
               </button>
             </div>
 
