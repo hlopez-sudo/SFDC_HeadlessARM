@@ -1,13 +1,15 @@
 import { useEffect, useState } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
-import { ChevronDown, ChevronRight, LayoutDashboard, Package, Settings, UserPlus } from 'lucide-react'
+import { ChevronDown, ChevronRight, LayoutDashboard, Package, Settings, ShoppingCart, UserPlus } from 'lucide-react'
 import { useQuoteCart } from '../../quote/QuoteCartContext'
+import { useOrderCart } from '../../quote/OrderCartContext'
 import { useSiteBranding } from '../../branding/SiteBrandingContext'
 import styles from './Sidebar.module.css'
 
 export function Sidebar() {
   const { pathname } = useLocation()
   const { items } = useQuoteCart()
+  const { items: orderItems } = useOrderCart()
   const { branding } = useSiteBranding()
   const plg = branding.enablePlg
   const productsPath = pathname === '/' || pathname.startsWith('/products')
@@ -62,6 +64,21 @@ export function Sidebar() {
                   )}
                 </NavLink>
               </div>
+
+              <NavLink
+                to="/cart"
+                className={({ isActive }) =>
+                  `${styles.row} ${isActive ? styles.rowActive : ''}`
+                }
+              >
+                <span className={styles.iconWrap}>
+                  <ShoppingCart size={18} strokeWidth={2} aria-hidden />
+                </span>
+                Cart
+                {orderItems.length > 0 && (
+                  <span className={styles.cartBadge}>{orderItems.length}</span>
+                )}
+              </NavLink>
             </>
           )}
 

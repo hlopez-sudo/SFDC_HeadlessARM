@@ -11,7 +11,7 @@ import { useHeadlessPricingConfig } from '../salesforce/HeadlessPricingConfigCon
 import { buildHeadlessPricingData } from '../salesforce/buildHeadlessPricingData'
 import { useSalesforceConfig } from '../salesforce/SalesforceConfigContext'
 import { useQuoteCart } from '../quote/QuoteCartContext'
-import { useTrialDrawer } from '../quote/TrialDrawerContext'
+import { useOrderCart } from '../quote/OrderCartContext'
 import { useBuyNowDrawer } from '../quote/BuyNowDrawerContext'
 import styles from './ProductDetailPage.module.css'
 
@@ -58,7 +58,7 @@ export function ProductDetailPage() {
   const { config: headlessConfig, isComplete: headlessComplete } = useHeadlessPricingConfig()
   const { orgInfo } = useSalesforceConfig()
   const { addItem, openModal } = useQuoteCart()
-  const { openTrial } = useTrialDrawer()
+  const { addItem: addOrderItem, openDrawer: openOrderDrawer } = useOrderCart()
   const { openBuyNow } = useBuyNowDrawer()
   const apiVersion = orgInfo.apiVersion || DEFAULT_API_VERSION
 
@@ -111,13 +111,6 @@ export function ProductDetailPage() {
     () => `/api/salesforce/services/data/v${apiVersion}/actions/standard/runSalesforceHeadlessPricing`,
     [apiVersion],
   )
-
-  const showStartTrial = useMemo(() => {
-    const lower = sellingModel.toLowerCase()
-    const hasEligibleFamily = lower.includes('term') || lower.includes('evergreen')
-    const hasEligibleCadence = lower.includes('monthly') || lower.includes('annual')
-    return hasEligibleFamily && hasEligibleCadence
-  }, [sellingModel])
 
   const unitPriceDisplay = useMemo(() => {
     if (pricing.status === 'ok') {
@@ -292,32 +285,6 @@ export function ProductDetailPage() {
           </div>
 
           <div className={styles.actionRow}>
-              {showStartTrial && (
-                <button
-                  type="button"
-                  className={styles.btnOutline}
-                  onClick={() =>
-                    openTrial({
-                      productId: catalogProduct.sfProductId,
-                      productName: catalogProduct.name,
-                      sellingModel,
-                      quantity: committedQuantity,
-                      accountName: (() => {
-                        try {
-                          const raw = localStorage.getItem('fc-active-account')
-                          if (!raw) return null
-                          const parsed = JSON.parse(raw) as { accountName?: string }
-                          return parsed?.accountName ?? null
-                        } catch {
-                          return null
-                        }
-                      })(),
-                    })
-                  }
-                >
-                  Start Trial
-                </button>
-              )}
               <button
                 type="button"
                 className={styles.btnPrimary}
@@ -363,6 +330,25 @@ export function ProductDetailPage() {
                 }}
               >
                 Add to Quote
+              </button>
+              <button
+                type="button"
+                className={styles.btnOutline}
+                onClick={() => {
+                  addOrderItem({
+                    productId: catalogProduct.sfProductId,
+                    productName: catalogProduct.name,
+                    quantity: committedQuantity,
+                    sellingModel,
+                    sellingModelId: selectedSellingModelId,
+                    unitPrice: pricing.status === 'ok' ? pricing.record.netUnitPrice : 0,
+                    lineTotal: pricing.status === 'ok' ? pricing.record.subtotal : 0,
+                    currencyIsoCode: pricing.status === 'ok' ? pricing.record.currencyIsoCode : 'USD',
+                  })
+                  openOrderDrawer()
+                }}
+              >
+                Add to Cart
               </button>
             </div>
 
