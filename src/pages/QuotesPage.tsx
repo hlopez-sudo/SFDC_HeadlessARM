@@ -14,18 +14,9 @@ function derivePreviewSellingModelFields(name: string): Record<string, string> {
   if (lower.includes('one time') || lower.includes('onetime')) {
     return { SellingModelType: 'OneTime' }
   }
-  const fields: Record<string, string> = {}
-  if (lower.includes('term')) fields.SellingModelType = 'TermDefined'
-  // if (lower.includes('monthly')) {
-  //   fields.BillingFrequency = 'Monthly'
-  //   fields.PricingTermUnit = 'Months'
-  //   fields.SubscriptionTermUnit = 'Months'
-  // } else if (lower.includes('annual')) {
-  //   fields.BillingFrequency = 'Annual'
-  //   fields.PricingTermUnit = 'Annual'
-  //   fields.SubscriptionTermUnit = 'Annual'
-  // }
-  return fields
+  if (lower.includes('term')) return { SellingModelType: 'TermDefined' }
+  if (lower.includes('evergreen')) return { SellingModelType: 'Evergreen' }
+  return {}
 }
 
 export function QuotesPage() {
