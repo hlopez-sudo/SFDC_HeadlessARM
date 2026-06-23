@@ -73,7 +73,7 @@ export function usePlaceSalesTransaction() {
         const productIds = [...new Set(items.map((i) => i.productId))]
         const inClause = productIds.map((id) => `'${id}'`).join(',')
         const soql =
-          `SELECT Id, Product2Id FROM PricebookEntry ` +
+          `SELECT Id, Product2Id, ProductSellingModelId FROM PricebookEntry ` +
           `WHERE Product2Id IN (${inClause}) AND Pricebook2Id = '${config.pricebookId.trim()}' AND IsActive = true`
 
         const pbRes = await fetch(
@@ -87,12 +87,16 @@ export function usePlaceSalesTransaction() {
               : `PricebookEntry lookup failed: HTTP ${pbRes.status}`,
           )
         }
-        const pbData = (await pbRes.json()) as { records: { Id: string; Product2Id: string }[] }
-        const entryMap = new Map<string, string>()
-        for (const r of pbData.records ?? []) {
-          entryMap.set(r.Product2Id, r.Id)
+        const pbData = (await pbRes.json()) as {
+          records: { Id: string; Product2Id: string; ProductSellingModelId?: string | null }[]
         }
-        console.log('[PST] PricebookEntry map:', Object.fromEntries(entryMap))
+        // Accumulate all entries per product so the correct one can be chosen by sellingModelId below
+        const entryMap = new Map<string, { Id: string; ProductSellingModelId?: string | null }[]>()
+        for (const r of pbData.records ?? []) {
+          const existing = entryMap.get(r.Product2Id) ?? []
+          existing.push(r)
+          entryMap.set(r.Product2Id, existing)
+        }
 
         // Step 2: build the PST graph
         const today = new Date().toISOString().split('T')[0]
@@ -121,13 +125,25 @@ export function usePlaceSalesTransaction() {
 
         let lineIndex = 0
         for (const item of items) {
-          const pricebookEntryId = entryMap.get(item.productId)
-          if (!pricebookEntryId) continue // skip products not in the pricebook
+          // Pick the PricebookEntry that matches the user's chosen selling model.
+          // Products with multiple entries (one per selling model) require this to ensure
+          // Salesforce can derive BillingFrequency from the correct entry.
+          const entries = entryMap.get(item.productId) ?? []
+          if (!entries.length) continue // skip products not in the pricebook
+
+          const smLower = (item.sellingModel ?? '').toLowerCase()
+          const billingPeriod: 'monthly' | 'annual' = smLower.includes('annual') ? 'annual' : 'monthly'
+          const bySellingModel = item.sellingModelId
+            ? entries.find((e) => e.ProductSellingModelId === item.sellingModelId)
+            : undefined
+          const selectedEntry =
+            bySellingModel ??
+            (billingPeriod === 'annual' && entries.length > 1
+              ? entries[entries.length - 1]
+              : entries[0])
+          const pricebookEntryId = selectedEntry.Id
 
           const smFields = item.sellingModel ? deriveSellingModelFields(item.sellingModel) : {}
-          // #region agent log
-          fetch('http://127.0.0.1:7258/ingest/0dd5df41-39a7-4ccf-bd52-e652c1f11bd8',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'0aca30'},body:JSON.stringify({sessionId:'0aca30',runId:'post-fix-F',hypothesisId:'F',location:'usePlaceSalesTransaction.ts:smFields',message:'smFields derived',data:{productId:item.productId,sellingModel:item.sellingModel,smFields},timestamp:Date.now()})}).catch(()=>{});
-          // #endregion
           const lineRecord: Record<string, unknown> = {
             attributes: { type: 'QuoteLineItem', method: 'POST' },
             QuoteId: '@{refQuote.id}',
@@ -140,9 +156,6 @@ export function usePlaceSalesTransaction() {
             PeriodBoundary: 'Anniversary',
           }
 
-          // #region agent log
-          fetch('http://127.0.0.1:7258/ingest/0dd5df41-39a7-4ccf-bd52-e652c1f11bd8',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'0aca30'},body:JSON.stringify({sessionId:'0aca30',runId:'post-fix-F',hypothesisId:'F',location:'usePlaceSalesTransaction.ts:lineRecord',message:'lineRecord built',data:{refId:`refQuoteLine${lineIndex}`,BillingFrequency:(lineRecord as Record<string,unknown>).BillingFrequency,SellingModelType:(lineRecord as Record<string,unknown>).SellingModelType,pricebookEntryId},timestamp:Date.now()})}).catch(()=>{});
-          // #endregion
           records.push({ referenceId: `refQuoteLine${lineIndex}`, record: lineRecord })
           lineIndex++
         }
@@ -151,7 +164,6 @@ export function usePlaceSalesTransaction() {
           console.error('[PST] No PricebookEntries matched cart products.', {
             requestedProductIds: productIds,
             pricebookId: config.pricebookId.trim(),
-            pricebookEntryMap: Object.fromEntries(entryMap),
           })
           throw new Error(
             'None of the cart products were found in the configured pricebook. Check the Pricebook ID in Admin → Salesforce.',
@@ -222,9 +234,12 @@ function deriveSellingModelFields(name: string): Record<string, string> {
   if (lower.includes('one time') || lower.includes('onetime')) {
     return { SellingModelType: 'OneTime' }
   }
-  // Do not explicitly set SellingModelType for term/evergreen selling models —
-  // Salesforce derives it from the PricebookEntry. Setting it explicitly without
-  // BillingFrequency causes FIELD_INTEGRITY_EXCEPTION on some products.
+  if (lower.includes('term')) {
+    return { SellingModelType: 'TermDefined' }
+  }
+  if (lower.includes('evergreen')) {
+    return { SellingModelType: 'Evergreen' }
+  }
   return {}
 }
 
