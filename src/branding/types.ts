@@ -30,7 +30,7 @@ export type SiteBranding = {
 }
 
 export const DEFAULT_LOGO_URL =
-  'https://www.salesforce.com/news/wp-content/uploads/sites/3/2021/05/Salesforce-logo.jpg?w=2048&h=1152'
+  'https://a.sfdcstatic.com/shared/images/c360-nav/salesforce-no-type-logo.svg'
 
 export const DEFAULT_BRANDING: SiteBranding = {
   siteName: 'Headless360',
