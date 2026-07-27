@@ -355,6 +355,33 @@ tr:last-child .td {
   background: var(--fc-surface);
 }
 
+.detailsContent {
+  padding: 10px 14px;
+}
+
+.endpointLine {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--fc-text);
+  word-break: break-all;
+}
+
+.methodBadge {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  border: 1px solid var(--fc-border);
+  border-radius: 999px;
+  padding: 2px 7px;
+  color: var(--fc-text-muted);
+  background: var(--fc-page-bg);
+  flex-shrink: 0;
+}
+
 .requestDetails[open] > .requestSummary {
   border-bottom: 1px solid var(--fc-border);
 }

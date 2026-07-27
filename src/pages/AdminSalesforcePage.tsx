@@ -480,7 +480,7 @@ function HeadlessPricingConfigSection() {
         `SELECT Id, Description, ContextDefinitionVersionId, ContextDefinitionVersion.ContextDefinition.DeveloperName FROM ContextMapping WHERE Description = 'Mapping to map entities related to pricing elements' LIMIT 1`
       )),
       fetch(base + encodeURIComponent(
-        `SELECT DeveloperName FROM ExpressionSetDefinition WHERE DeveloperName = 'RLM_DefaultPricingProcedure' LIMIT 1`
+        `SELECT DeveloperName FROM ExpressionSetDefinition WHERE DeveloperName = 'RLM_DefaultNearCorePricingProcedure' LIMIT 1`
       )),
       fetch(base + encodeURIComponent(
         `SELECT Id FROM Pricebook2 WHERE IsStandard = true AND IsActive = true LIMIT 1`
@@ -617,7 +617,7 @@ function HeadlessPricingConfigSection() {
           <span className={local.fieldLabel}>pricingProcedureId</span>
           <span className={local.fieldLabelHelp}>
             Searches Expression Set and returns API Name of Pricing Procedure: If using QuantumBit search for{' '}
-            <strong>RLM_DefaultPricingProcedure</strong>
+            <strong>RLM_DefaultNearCorePricingProcedure</strong>
           </span>
         </span>
         <SalesforceLookupInput

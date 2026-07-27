@@ -23,6 +23,36 @@ function stepItemClass(status: LifecycleStep['status']): string {
   return styles.stepItem
 }
 
+function renderLifecycleStepDetails(step: LifecycleStep, i: number) {
+  if (!(step.url || step.requestBody !== undefined || step.response !== undefined || step.error)) return null
+
+  return (
+    <details key={`detail-${i}`} className={styles.requestDetails}>
+      <summary className={styles.requestSummary}>{step.name}</summary>
+      {step.url && (
+        <div className={styles.detailsContent}>
+          <p className={styles.endpointLine}>
+            <span className={styles.methodBadge}>{step.method ?? 'POST'}</span>
+            {step.url}
+          </p>
+        </div>
+      )}
+      {step.requestBody !== undefined && (
+        <pre className={styles.responseJson}>
+          {'Request: ' + JSON.stringify(step.requestBody, null, 2)}
+        </pre>
+      )}
+      {(step.response !== undefined || step.error) && (
+        <pre className={styles.responseJson}>
+          {step.error
+            ? `Error: ${step.error}`
+            : 'Response: ' + JSON.stringify(step.response, null, 2)}
+        </pre>
+      )}
+    </details>
+  )
+}
+
 export function CartPage() {
   const { items, removeItem, clearCart } = useOrderCart()
   const { submit, state, reset } = usePlaceOrder()
@@ -31,6 +61,21 @@ export function CartPage() {
   const grandTotal = items.reduce((sum, i) => sum + i.lineTotal, 0)
   const currency = items[0]?.currencyIsoCode ?? 'USD'
   const isSubmitting = state.status === 'loading'
+  const requestPreview = state.requestBody ?? {
+    pricingPref: 'System',
+    catalogRatesPref: 'Fetch',
+    graph: {
+      graphId: 'createCartOrder',
+      records: items.map((item, i) => ({
+        referenceId: `refOrderItem${i}`,
+        productId: item.productId,
+        productName: item.productName,
+        quantity: item.quantity,
+        sellingModel: item.sellingModel ?? null,
+      })),
+    },
+    note: 'Preview from current cart. Full request is finalized at submit time.',
+  }
 
   if (items.length === 0 && state.status !== 'success') {
     return (
@@ -74,19 +119,43 @@ export function CartPage() {
           )}
 
           {state.lifecycleSteps.length > 0 && (
-            <ul className={styles.stepList}>
-              {state.lifecycleSteps.map((step, i) => (
-                <li key={i} className={stepItemClass(step.status)}>
-                  <StepIcon step={step} />
-                  <span className={styles.stepName}>{step.name}</span>
-                </li>
-              ))}
-            </ul>
+            <>
+              <ul className={styles.stepList}>
+                {state.lifecycleSteps.map((step, i) => (
+                  <li key={i} className={stepItemClass(step.status)}>
+                    <StepIcon step={step} />
+                    <span className={styles.stepName}>{step.name}</span>
+                  </li>
+                ))}
+              </ul>
+              {state.lifecycleSteps.map((step, i) => renderLifecycleStepDetails(step, i))}
+            </>
+          )}
+
+          {state.requestUrl && (
+            <details className={styles.requestDetails}>
+              <summary className={styles.requestSummary}>Endpoint</summary>
+              <div className={styles.detailsContent}>
+                <p className={styles.endpointLine}>
+                  <span className={styles.methodBadge}>POST</span>
+                  {state.requestUrl}
+                </p>
+              </div>
+            </details>
+          )}
+
+          {requestPreview !== null && (
+            <details className={styles.requestDetails}>
+              <summary className={styles.requestSummary}>API Request Preview</summary>
+              <pre className={styles.responseJson}>
+                {JSON.stringify(requestPreview, null, 2)}
+              </pre>
+            </details>
           )}
 
           {state.apiResponse !== null && (
             <details className={styles.requestDetails}>
-              <summary className={styles.requestSummary}>API Response</summary>
+              <summary className={styles.requestSummary}>PST Response</summary>
               <pre className={styles.responseJson}>
                 {JSON.stringify(state.apiResponse, null, 2)}
               </pre>
@@ -170,7 +239,38 @@ export function CartPage() {
               </li>
             ))}
           </ul>
+          {state.lifecycleSteps.map((step, i) => renderLifecycleStepDetails(step, i))}
         </div>
+      )}
+
+      {state.requestUrl && (
+        <details className={styles.requestDetails}>
+          <summary className={styles.requestSummary}>Endpoint</summary>
+          <div className={styles.detailsContent}>
+            <p className={styles.endpointLine}>
+              <span className={styles.methodBadge}>POST</span>
+              {state.requestUrl}
+            </p>
+          </div>
+        </details>
+      )}
+
+      {requestPreview !== null && (
+        <details className={styles.requestDetails}>
+          <summary className={styles.requestSummary}>API Request Preview</summary>
+          <pre className={styles.responseJson}>
+            {JSON.stringify(requestPreview, null, 2)}
+          </pre>
+        </details>
+      )}
+
+      {state.apiResponse !== null && (
+        <details className={styles.requestDetails}>
+          <summary className={styles.requestSummary}>PST Response</summary>
+          <pre className={styles.responseJson}>
+            {JSON.stringify(state.apiResponse, null, 2)}
+          </pre>
+        </details>
       )}
 
       {isSubmitting && state.loadingStep && (
