@@ -1,6 +1,15 @@
 import { useCallback, useState } from 'react'
 import { useSalesforceConfig } from '../salesforce/SalesforceConfigContext'
 import { useHeadlessPricingConfig } from '../salesforce/HeadlessPricingConfigContext'
+import {
+  entriesForCurrency,
+  fetchCurrencyContext,
+  pricebookEntryFields,
+  resolveHeaderCurrency,
+  SINGLE_CURRENCY_CONTEXT,
+} from '../salesforce/accountCurrency'
+import { extractPstErrorMessage } from '../salesforce/placeSalesTransactionError'
+import { resolveQuoteTerm } from '../salesforce/quoteTerm'
 import type { QuoteItem } from './QuoteCartContext'
 
 const ACTIVE_ACCOUNT_KEY = 'fc-active-account'
@@ -30,15 +39,18 @@ export type SubmitState = {
   status: 'idle' | 'loading' | 'success' | 'error'
   quoteId: string | null
   error: string | null
-  apiResponse: unknown | null
-  requestUrl: string | null
-  requestBody: unknown | null
+  /** Non-blocking notices, e.g. a price book entry missing in the account's currency. */
+  warnings?: string[]
+  apiResponse?: unknown | null
+  requestUrl?: string | null
+  requestBody?: unknown | null
 }
 
 const IDLE: SubmitState = {
   status: 'idle',
   quoteId: null,
   error: null,
+  warnings: [],
   apiResponse: null,
   requestUrl: null,
   requestBody: null,
@@ -69,11 +81,16 @@ export function usePlaceSalesTransaction() {
       const account = loadActiveAccount()
 
       try {
+        const currencyCtx = account?.accountId
+          ? await fetchCurrencyContext(apiVersion, account.accountId)
+          : SINGLE_CURRENCY_CONTEXT
+
         // Step 1: fetch PricebookEntry IDs for each product
         const productIds = [...new Set(items.map((i) => i.productId))]
         const inClause = productIds.map((id) => `'${id}'`).join(',')
         const soql =
-          `SELECT Id, Product2Id, ProductSellingModelId FROM PricebookEntry ` +
+          `SELECT ${pricebookEntryFields(['Id', 'Product2Id', 'ProductSellingModelId'], currencyCtx)} ` +
+          `FROM PricebookEntry ` +
           `WHERE Product2Id IN (${inClause}) AND Pricebook2Id = '${config.pricebookId.trim()}' AND IsActive = true`
 
         const pbRes = await fetch(
@@ -88,10 +105,20 @@ export function usePlaceSalesTransaction() {
           )
         }
         const pbData = (await pbRes.json()) as {
-          records: { Id: string; Product2Id: string; ProductSellingModelId?: string | null }[]
+          records: {
+            Id: string
+            Product2Id: string
+            ProductSellingModelId?: string | null
+            CurrencyIsoCode?: string | null
+          }[]
         }
         // Accumulate all entries per product so the correct one can be chosen by sellingModelId below
-        const entryMap = new Map<string, { Id: string; ProductSellingModelId?: string | null }[]>()
+        type QuoteEntry = {
+          Id: string
+          ProductSellingModelId?: string | null
+          CurrencyIsoCode?: string | null
+        }
+        const entryMap = new Map<string, QuoteEntry[]>()
         for (const r of pbData.records ?? []) {
           const existing = entryMap.get(r.Product2Id) ?? []
           existing.push(r)
@@ -99,51 +126,75 @@ export function usePlaceSalesTransaction() {
         }
 
         // Step 2: build the PST graph
-        const today = new Date().toISOString().split('T')[0]
         const dateTime = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)
         const autoName = account?.accountName
           ? `HeadlessQuote_${account.accountName}_${dateTime}`
           : `HeadlessQuote_${dateTime}`
+
+        // All lines of a Quote share the header currency, and QuoteLineItem.CurrencyIsoCode
+        // is not createable — Salesforce derives it from the PricebookEntry — so the
+        // currency is decided once here and every line is bound to a matching entry.
+        type PreparedLine = { item: QuoteItem; matchedSellingModel: boolean; candidates: QuoteEntry[] }
+        const preparedLines: PreparedLine[] = []
+        for (const item of items) {
+          const entries = entryMap.get(item.productId) ?? []
+          if (!entries.length) continue // skip products not in the pricebook
+          const bySellingModel = item.sellingModelId
+            ? entries.filter((e) => e.ProductSellingModelId === item.sellingModelId)
+            : []
+          preparedLines.push({
+            item,
+            matchedSellingModel: bySellingModel.length > 0,
+            candidates: bySellingModel.length ? bySellingModel : entries,
+          })
+        }
+
+        const { currency: quoteCurrency, warnings: currencyWarnings } = resolveHeaderCurrency(
+          preparedLines.map((l) => ({ productName: l.item.productName, candidates: l.candidates })),
+          currencyCtx,
+        )
+
+        // Compute quote line dates — the span drives PricingTermCount, which the pricing
+        // procedure uses to scale unit cost, so a degenerate range breaks Margin.
+        const { startDate, endDate, warnings: termWarnings } = resolveQuoteTerm({
+          quoteStartDate: config.quoteStartDate,
+          quoteEndDate: config.quoteEndDate,
+        })
+
+        const warnings = [...currencyWarnings, ...termWarnings]
+        if (warnings.length) setState((prev) => ({ ...prev, warnings }))
 
         const quoteRecord: Record<string, unknown> = {
           attributes: { type: 'Quote', method: 'POST' },
           Name: quoteName?.trim() || autoName,
           ...(account?.accountId ? { QuoteAccountId: account.accountId } : {}),
           Pricebook2Id: config.pricebookId.trim(),
+          ...(quoteCurrency ? { CurrencyIsoCode: quoteCurrency } : {}),
         }
 
         const records: unknown[] = [{ referenceId: 'refQuote', record: quoteRecord }]
 
-        // Compute quote line dates — required for term/subscription selling models
-        const startDate = config.quoteStartDate.trim() || today
-        const endDate = (() => {
-          if (config.quoteEndDate.trim()) return config.quoteEndDate.trim()
-          const d = new Date(startDate)
-          d.setFullYear(d.getFullYear() + 1)
-          return d.toISOString().split('T')[0]
-        })()
-
         let lineIndex = 0
-        for (const item of items) {
-          // Pick the PricebookEntry that matches the user's chosen selling model.
-          // Products with multiple entries (one per selling model) require this to ensure
-          // Salesforce can derive BillingFrequency from the correct entry.
-          const entries = entryMap.get(item.productId) ?? []
-          if (!entries.length) continue // skip products not in the pricebook
-
+        for (const { item, matchedSellingModel, candidates } of preparedLines) {
+          // Pick the PricebookEntry that matches the user's chosen selling model and the
+          // quote's currency. Products with multiple entries (one per selling model, and
+          // one per currency in multi-currency orgs) require this so Salesforce can derive
+          // BillingFrequency from the correct entry.
           const smLower = (item.sellingModel ?? '').toLowerCase()
           const billingPeriod: 'monthly' | 'annual' = smLower.includes('annual') ? 'annual' : 'monthly'
-          const bySellingModel = item.sellingModelId
-            ? entries.find((e) => e.ProductSellingModelId === item.sellingModelId)
-            : undefined
+          const inCurrency = entriesForCurrency(candidates, quoteCurrency)
           const selectedEntry =
-            bySellingModel ??
-            (billingPeriod === 'annual' && entries.length > 1
-              ? entries[entries.length - 1]
-              : entries[0])
+            !matchedSellingModel && billingPeriod === 'annual' && inCurrency.length > 1
+              ? inCurrency[inCurrency.length - 1]
+              : inCurrency[0]
+          if (!selectedEntry) continue
           const pricebookEntryId = selectedEntry.Id
 
           const smFields = item.sellingModel ? deriveSellingModelFields(item.sellingModel) : {}
+          // Same rules as the order flows: One-Time lines carry no recurring fields, and
+          // Evergreen lines have no end.
+          const isOneTime = smFields.SellingModelType === 'OneTime'
+          const isEvergreen = smFields.SellingModelType === 'Evergreen'
           const lineRecord: Record<string, unknown> = {
             attributes: { type: 'QuoteLineItem', method: 'POST' },
             QuoteId: '@{refQuote.id}',
@@ -152,8 +203,12 @@ export function usePlaceSalesTransaction() {
             ...smFields,
             Quantity: item.quantity,
             StartDate: startDate,
-            EndDate: endDate,
-            PeriodBoundary: 'Anniversary',
+            ...(isOneTime
+              ? {}
+              : {
+                  ...(isEvergreen ? {} : { EndDate: endDate }),
+                  PeriodBoundary: 'Anniversary',
+                }),
           }
 
           records.push({ referenceId: `refQuoteLine${lineIndex}`, record: lineRecord })
@@ -195,17 +250,7 @@ export function usePlaceSalesTransaction() {
         if (!pstRes.ok) {
           console.error('[PST] Response headers:', Object.fromEntries(pstRes.headers))
           console.error('[PST] Error response body:', JSON.stringify(pstData, null, 2))
-          let msg = `Request failed: HTTP ${pstRes.status}`
-          if (Array.isArray(pstData) && (pstData[0] as { message?: string })?.message) {
-            msg = (pstData[0] as { message: string }).message
-          } else if (
-            pstData &&
-            typeof pstData === 'object' &&
-            (pstData as { message?: string }).message
-          ) {
-            msg = (pstData as { message: string }).message
-          }
-          throw new Error(msg)
+          throw new Error(extractPstErrorMessage(pstData, pstRes.status))
         }
 
         console.log('[PST] Response body:', JSON.stringify(pstData, null, 2))
@@ -231,7 +276,7 @@ export function usePlaceSalesTransaction() {
 
 function deriveSellingModelFields(name: string): Record<string, string> {
   const lower = name.toLowerCase()
-  if (lower.includes('one time') || lower.includes('onetime')) {
+  if (lower.includes('one time') || lower.includes('one-time') || lower.includes('onetime')) {
     return { SellingModelType: 'OneTime' }
   }
   if (lower.includes('term')) {

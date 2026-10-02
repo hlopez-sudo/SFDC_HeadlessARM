@@ -120,6 +120,13 @@ export function TrialDrawer() {
             </div>
           )}
 
+          {/* Currency fallback notices */}
+          {state.warnings.map((warning) => (
+            <div key={warning} className={styles.warnBanner} role="status">
+              {warning}
+            </div>
+          ))}
+
           {/* Error banner */}
           {state.status === 'error' && state.error && (
             <div className={styles.errorBanner} role="alert">

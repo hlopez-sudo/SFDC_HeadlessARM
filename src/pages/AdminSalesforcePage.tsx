@@ -3,6 +3,7 @@ import { RefreshCw, CheckCircle, XCircle, Save, User2 } from 'lucide-react'
 import { useSalesforceConfig } from '../salesforce/SalesforceConfigContext'
 import { useHeadlessPricingConfig } from '../salesforce/HeadlessPricingConfigContext'
 import type { HeadlessPricingConfig } from '../salesforce/headlessPricingConfig'
+import { resolveQuoteTerm } from '../salesforce/quoteTerm'
 import { SalesforceLookupInput } from '../components/salesforce/SalesforceLookupInput'
 import styles from './AdminPage.module.css'
 import local from './AdminSalesforcePage.module.css'
@@ -480,7 +481,7 @@ function HeadlessPricingConfigSection() {
         `SELECT Id, Description, ContextDefinitionVersionId, ContextDefinitionVersion.ContextDefinition.DeveloperName FROM ContextMapping WHERE Description = 'Mapping to map entities related to pricing elements' LIMIT 1`
       )),
       fetch(base + encodeURIComponent(
-        `SELECT DeveloperName FROM ExpressionSetDefinition WHERE DeveloperName = 'RLM_DefaultNearCorePricingProcedure' LIMIT 1`
+        `SELECT DeveloperName FROM ExpressionSetDefinition WHERE DeveloperName = 'RLM_DefaultPricingProcedure' LIMIT 1`
       )),
       fetch(base + encodeURIComponent(
         `SELECT Id FROM Pricebook2 WHERE IsStandard = true AND IsActive = true LIMIT 1`
@@ -494,7 +495,11 @@ function HeadlessPricingConfigSection() {
 
     const [ctxDef, ctxMap, pricingProc, pricebook] = results
 
-    const patch: Partial<HeadlessPricingConfig> = { skipDiscovery: true }
+    const patch: Partial<HeadlessPricingConfig> = {
+      skipDiscovery: true,
+      quoteStartDate: '',
+      quoteEndDate: '',
+    }
 
     if (ctxDef.status === 'fulfilled' && ctxDef.value?.records?.[0]) {
       const rec = ctxDef.value.records[0]
@@ -617,7 +622,7 @@ function HeadlessPricingConfigSection() {
           <span className={local.fieldLabel}>pricingProcedureId</span>
           <span className={local.fieldLabelHelp}>
             Searches Expression Set and returns API Name of Pricing Procedure: If using QuantumBit search for{' '}
-            <strong>RLM_DefaultNearCorePricingProcedure</strong>
+            <strong>RLM Revenue Management Default Pricing Procedure</strong>
           </span>
         </span>
         <SalesforceLookupInput
@@ -698,7 +703,7 @@ function HeadlessPricingConfigSection() {
       <label className={local.field}>
         <span className={local.fieldLabelRow}>
           <span className={local.fieldLabel}>quoteEndDate</span>
-          <span className={local.fieldLabelHelp}>Used as EndDate on QuoteLineItems — defaults to start date + 1 year if blank</span>
+          <span className={local.fieldLabelHelp}>Used as EndDate on QuoteLineItems — defaults to start date + 1 year − 1 day if blank, and is ignored unless it falls after the start date</span>
         </span>
         <input
           type="date"
@@ -771,12 +776,7 @@ function PstTestSection({ isConnected }: { isConnected: boolean }) {
 
     const apiVersion = orgInfo.apiVersion || '62.0'
     const today = new Date().toISOString().split('T')[0]
-    const startDate = config.quoteStartDate.trim() || today
-    const endDate = config.quoteEndDate.trim() || (() => {
-      const d = new Date(startDate)
-      d.setFullYear(d.getFullYear() + 1)
-      return d.toISOString().split('T')[0]
-    })()
+    const { startDate, endDate } = resolveQuoteTerm(config)
 
     try {
       const soql =

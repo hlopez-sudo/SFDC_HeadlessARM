@@ -1,6 +1,13 @@
 import { useCallback, useRef, useState } from 'react'
 import { useSalesforceConfig } from '../salesforce/SalesforceConfigContext'
 import { useHeadlessPricingConfig } from '../salesforce/HeadlessPricingConfigContext'
+import {
+  entriesForCurrency,
+  fetchCurrencyContext,
+  pricebookEntryFields,
+  resolveHeaderCurrency,
+} from '../salesforce/accountCurrency'
+import { extractPstErrorMessage } from '../salesforce/placeSalesTransactionError'
 
 const ACTIVE_ACCOUNT_KEY = 'fc-active-account'
 
@@ -40,6 +47,8 @@ export type BuyNowState = {
   loadingStep: string | null
   orderId: string | null
   error: string | null
+  /** Non-blocking notices, e.g. a price book entry missing in the account's currency. */
+  warnings: string[]
   apiResponse: unknown | null
   requestUrl: string | null
   requestBody: unknown | null
@@ -51,6 +60,7 @@ const IDLE: BuyNowState = {
   loadingStep: null,
   orderId: null,
   error: null,
+  warnings: [],
   apiResponse: null,
   requestUrl: null,
   requestBody: null,
@@ -166,9 +176,13 @@ export function useBuyNow() {
           : { records: [] }
         const contactId = contactData.records[0]?.Id ?? null
 
+        setLoadingStep('Looking up account currency…')
+        const currencyCtx = await fetchCurrencyContext(apiVersion, accountId)
+
         setLoadingStep('Looking up pricebook entry…')
         const pbSoql =
-          `SELECT Id, UnitPrice, ProductSellingModelId FROM PricebookEntry ` +
+          `SELECT ${pricebookEntryFields(['Id', 'UnitPrice', 'ProductSellingModelId', 'Product2.Name'], currencyCtx)} ` +
+          `FROM PricebookEntry ` +
           `WHERE Product2Id = '${productId}' AND Pricebook2Id = '${pricebookId}' AND IsActive = true ` +
           `ORDER BY UnitPrice ASC`
         const pbRes = await fetch(
@@ -176,21 +190,36 @@ export function useBuyNow() {
         )
         if (!pbRes.ok) throw new Error(`PricebookEntry lookup failed: HTTP ${pbRes.status}`)
         const pbData = (await pbRes.json()) as {
-          records: { Id: string; UnitPrice: number; ProductSellingModelId?: string | null }[]
+          records: {
+            Id: string
+            UnitPrice: number
+            ProductSellingModelId?: string | null
+            CurrencyIsoCode?: string | null
+            Product2?: { Name?: string } | null
+          }[]
         }
         if (!pbData.records.length) {
           throw new Error('No active PricebookEntry found for this product. Check the Pricebook ID in Admin → Salesforce.')
         }
         // Bind the line to the selected selling model via its PricebookEntry
         // (OrderItem.ProductSellingModelId is FLS-restricted for the integration user).
-        const pbBySellingModel = sellingModelId
-          ? pbData.records.find((r) => r.ProductSellingModelId === sellingModelId)
-          : undefined
+        const bySellingModel = sellingModelId
+          ? pbData.records.filter((r) => r.ProductSellingModelId === sellingModelId)
+          : []
+        const candidates = bySellingModel.length ? bySellingModel : pbData.records
+
+        const productName = pbData.records[0]?.Product2?.Name ?? 'this product'
+        const { currency: orderCurrency, warnings } = resolveHeaderCurrency(
+          [{ productName, candidates }],
+          currencyCtx,
+        )
+        if (warnings.length) setState((prev) => ({ ...prev, warnings }))
+
+        const inCurrency = entriesForCurrency(candidates, orderCurrency)
         const pbEntry =
-          pbBySellingModel ??
-          (billingPeriod === 'annual' && pbData.records.length > 1
-            ? pbData.records[pbData.records.length - 1]
-            : pbData.records[0])
+          !bySellingModel.length && billingPeriod === 'annual' && inCurrency.length > 1
+            ? inCurrency[inCurrency.length - 1]
+            : inCurrency[0]
         const pricebookEntryId = pbEntry.Id
         const unitPrice = pbEntry.UnitPrice ?? 0
 
@@ -235,6 +264,9 @@ export function useBuyNow() {
           attributes: { method: 'POST', type: 'Order' },
           AccountId: accountId,
           Pricebook2Id: pricebookId,
+          // OrderItem.CurrencyIsoCode is not createable — Salesforce derives it from the
+          // PricebookEntry and requires it to match the Order, so only the header is set.
+          ...(orderCurrency ? { CurrencyIsoCode: orderCurrency } : {}),
           EffectiveDate: startDate,
           Status: 'Draft',
           ...(contactId ? { BillToContactId: contactId, ShipToContactId: contactId } : {}),
@@ -304,13 +336,7 @@ export function useBuyNow() {
 
         if (!pstRes.ok) {
           console.error('[BuyNow] PST error:', JSON.stringify(pstData, null, 2))
-          let msg = `Request failed: HTTP ${pstRes.status}`
-          if (Array.isArray(pstData) && (pstData[0] as { message?: string })?.message) {
-            msg = (pstData[0] as { message: string }).message
-          } else if (pstData && typeof pstData === 'object' && (pstData as { message?: string }).message) {
-            msg = (pstData as { message: string }).message
-          }
-          throw new Error(msg)
+          throw new Error(extractPstErrorMessage(pstData, pstRes.status))
         }
 
         const orderId = extractOrderId(pstData)

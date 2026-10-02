@@ -1,6 +1,13 @@
 import { useCallback, useRef, useState } from 'react'
 import { useSalesforceConfig } from '../salesforce/SalesforceConfigContext'
 import { useHeadlessPricingConfig } from '../salesforce/HeadlessPricingConfigContext'
+import {
+  entriesForCurrency,
+  fetchCurrencyContext,
+  pricebookEntryFields,
+  resolveHeaderCurrency,
+} from '../salesforce/accountCurrency'
+import { extractPstErrorMessage } from '../salesforce/placeSalesTransactionError'
 import type { LifecycleStep } from './useBuyNow'
 import type { OrderCartItem } from './OrderCartContext'
 
@@ -32,6 +39,8 @@ export type OrderCartState = {
   loadingStep: string | null
   orderId: string | null
   error: string | null
+  /** Non-blocking notices, e.g. a price book entry missing in the account's currency. */
+  warnings: string[]
   apiResponse: unknown | null
   requestUrl: string | null
   requestBody: unknown | null
@@ -43,6 +52,7 @@ const IDLE: OrderCartState = {
   loadingStep: null,
   orderId: null,
   error: null,
+  warnings: [],
   apiResponse: null,
   requestUrl: null,
   requestBody: null,
@@ -163,43 +173,81 @@ export function usePlaceOrder() {
           : { records: [] }
         const contactId = contactData.records[0]?.Id ?? null
 
-        // ── Per-line lookups: build one OrderItem record per cart item ───────
+        setLoadingStep('Looking up account currency…')
+        const currencyCtx = await fetchCurrencyContext(apiVersion, accountId)
 
-        const orderItemRecords: { referenceId: string; record: Record<string, unknown> }[] = []
-        let lineIndex = 0
+        // ── Pass 1: collect the candidate pricebook entries for every line ───
+        // Every line of an Order shares the header's currency, so the entries are
+        // gathered first and the currency is decided once, below.
+
+        type PreparedLine = {
+          item: OrderCartItem
+          billingPeriod: 'monthly' | 'annual'
+          matchedSellingModel: boolean
+          candidates: { Id: string; UnitPrice: number; CurrencyIsoCode?: string | null }[]
+        }
+        const preparedLines: PreparedLine[] = []
+
         for (const item of items) {
-          const productId = item.productId
-          const quantity = item.quantity
-          const sellingModelId = item.sellingModelId
-          const sellingModel = item.sellingModel
-          const smLower = (sellingModel ?? '').toLowerCase()
+          const smLower = (item.sellingModel ?? '').toLowerCase()
           const billingPeriod: 'monthly' | 'annual' = smLower.includes('annual') ? 'annual' : 'monthly'
 
           setLoadingStep(`Looking up pricebook entry (${item.productName})…`)
           const pbSoql =
-            `SELECT Id, UnitPrice, ProductSellingModelId FROM PricebookEntry ` +
-            `WHERE Product2Id = '${productId}' AND Pricebook2Id = '${pricebookId}' AND IsActive = true ` +
+            `SELECT ${pricebookEntryFields(['Id', 'UnitPrice', 'ProductSellingModelId'], currencyCtx)} ` +
+            `FROM PricebookEntry ` +
+            `WHERE Product2Id = '${item.productId}' AND Pricebook2Id = '${pricebookId}' AND IsActive = true ` +
             `ORDER BY UnitPrice ASC`
           const pbRes = await fetch(
             `/api/salesforce/services/data/v${apiVersion}/query?q=${encodeURIComponent(pbSoql)}`,
           )
           if (!pbRes.ok) throw new Error(`PricebookEntry lookup failed: HTTP ${pbRes.status}`)
           const pbData = (await pbRes.json()) as {
-            records: { Id: string; UnitPrice: number; ProductSellingModelId?: string | null }[]
+            records: {
+              Id: string
+              UnitPrice: number
+              ProductSellingModelId?: string | null
+              CurrencyIsoCode?: string | null
+            }[]
           }
           if (!pbData.records.length) {
             throw new Error(`No active PricebookEntry found for ${item.productName}. Check the Pricebook ID in Admin → Salesforce.`)
           }
           // Bind the line to the selected selling model via its PricebookEntry
           // (OrderItem.ProductSellingModelId is FLS-restricted for the integration user).
-          const pbBySellingModel = sellingModelId
-            ? pbData.records.find((r) => r.ProductSellingModelId === sellingModelId)
-            : undefined
+          const bySellingModel = item.sellingModelId
+            ? pbData.records.filter((r) => r.ProductSellingModelId === item.sellingModelId)
+            : []
+          preparedLines.push({
+            item,
+            billingPeriod,
+            matchedSellingModel: bySellingModel.length > 0,
+            candidates: bySellingModel.length ? bySellingModel : pbData.records,
+          })
+        }
+
+        const { currency: orderCurrency, warnings } = resolveHeaderCurrency(
+          preparedLines.map((l) => ({ productName: l.item.productName, candidates: l.candidates })),
+          currencyCtx,
+        )
+        if (warnings.length) setState((prev) => ({ ...prev, warnings }))
+
+        // ── Pass 2: build one OrderItem record per cart item ─────────────────
+
+        const orderItemRecords: { referenceId: string; record: Record<string, unknown> }[] = []
+        let lineIndex = 0
+        for (const { item, billingPeriod, matchedSellingModel, candidates } of preparedLines) {
+          const productId = item.productId
+          const quantity = item.quantity
+          const sellingModelId = item.sellingModelId
+          const sellingModel = item.sellingModel
+          const smLower = (sellingModel ?? '').toLowerCase()
+
+          const inCurrency = entriesForCurrency(candidates, orderCurrency)
           const pbEntry =
-            pbBySellingModel ??
-            (billingPeriod === 'annual' && pbData.records.length > 1
-              ? pbData.records[pbData.records.length - 1]
-              : pbData.records[0])
+            !matchedSellingModel && billingPeriod === 'annual' && inCurrency.length > 1
+              ? inCurrency[inCurrency.length - 1]
+              : inCurrency[0]
           const pricebookEntryId = pbEntry.Id
           const unitPrice = pbEntry.UnitPrice ?? 0
 
@@ -269,6 +317,9 @@ export function usePlaceOrder() {
           attributes: { method: 'POST', type: 'Order' },
           AccountId: accountId,
           Pricebook2Id: pricebookId,
+          // OrderItem.CurrencyIsoCode is not createable — Salesforce derives it from the
+          // PricebookEntry and requires it to match the Order, so only the header is set.
+          ...(orderCurrency ? { CurrencyIsoCode: orderCurrency } : {}),
           EffectiveDate: startDate,
           Status: 'Draft',
           ...(contactId ? { BillToContactId: contactId, ShipToContactId: contactId } : {}),
@@ -318,13 +369,7 @@ export function usePlaceOrder() {
 
         if (!pstRes.ok) {
           console.error('[PlaceOrder] PST error:', JSON.stringify(pstData, null, 2))
-          let msg = `Request failed: HTTP ${pstRes.status}`
-          if (Array.isArray(pstData) && (pstData[0] as { message?: string })?.message) {
-            msg = (pstData[0] as { message: string }).message
-          } else if (pstData && typeof pstData === 'object' && (pstData as { message?: string }).message) {
-            msg = (pstData as { message: string }).message
-          }
-          throw new Error(msg)
+          throw new Error(extractPstErrorMessage(pstData, pstRes.status))
         }
 
         const orderId = extractOrderId(pstData)

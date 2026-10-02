@@ -252,6 +252,16 @@
   line-height: 1.5;
 }
 
+.warnBanner {
+  padding: 10px 12px;
+  border-radius: var(--fc-radius-sm);
+  background: #fffbeb;
+  border: 1px solid #fbbf24;
+  color: #92400e;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
 .sfLink {
   color: #065f46;
   font-size: 12px;

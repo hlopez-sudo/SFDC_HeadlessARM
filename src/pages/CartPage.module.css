@@ -189,6 +189,17 @@ tr:last-child .td {
   line-height: 1.5;
 }
 
+.warnCard {
+  margin-top: 16px;
+  padding: 12px 16px;
+  border-radius: var(--fc-radius-sm);
+  background: #fffbeb;
+  border: 1px solid #fbbf24;
+  color: #92400e;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
 .successCard {
   margin-top: 24px;
   padding: 24px;

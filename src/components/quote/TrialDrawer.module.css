@@ -261,6 +261,19 @@
   gap: 6px;
 }
 
+.warnBanner {
+  padding: 12px 14px;
+  border-radius: var(--fc-radius-sm, 4px);
+  background: #fffbeb;
+  border: 1px solid #fbbf24;
+  color: #92400e;
+  font-size: 13px;
+  line-height: 1.5;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
 /* ── Collapsible detail sections ── */
 .detailsBlock {
   border: 1px solid var(--fc-border);

@@ -137,6 +137,12 @@ export function QuoteCartModal() {
 
         {(items.length > 0 || isSuccess) && (
           <div className={styles.drawerFooter}>
+            {state.warnings?.map((warning) => (
+              <div key={warning} className={styles.warnBanner} role="status">
+                {warning}
+              </div>
+            ))}
+
             {state.status === 'error' && (
               <div className={styles.errorBanner} role="alert">
                 {state.error}

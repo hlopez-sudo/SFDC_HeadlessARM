@@ -3,6 +3,7 @@ import { useSalesforceConfig } from '../salesforce/SalesforceConfigContext'
 import { useHeadlessPricingConfig } from '../salesforce/HeadlessPricingConfigContext'
 import { buildHeadlessPricingData } from '../salesforce/buildHeadlessPricingData'
 import { runHeadlessPricingAction } from '../salesforce/runHeadlessPricingAction'
+import { fetchCurrencyContext, SINGLE_CURRENCY_CONTEXT } from '../salesforce/accountCurrency'
 
 export type WaterfallStep = {
   name: string
@@ -31,6 +32,19 @@ export type SalesforcePricingState =
   | { status: 'error'; error: string; raw?: unknown; headlessAttemptRaw?: unknown }
 
 const API_VERSION = '67.0'
+
+const ACTIVE_ACCOUNT_KEY = 'fc-active-account'
+
+function loadActiveAccountId(): string | null {
+  try {
+    const raw = localStorage.getItem(ACTIVE_ACCOUNT_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as { accountId?: unknown }
+    return typeof parsed.accountId === 'string' ? parsed.accountId : null
+  } catch {
+    return null
+  }
+}
 
 // ---------------------------------------------------------------------------
 // RLM Pricing Business API types
@@ -102,6 +116,7 @@ async function runRlmPricing(
   apiVersion: string,
   sfProductId: string,
   quantity: number,
+  currency: string,
   sellingModelId?: string,
 ): Promise<
   | { ok: true; record: PricingWaterfallRecord; raw: unknown }
@@ -113,7 +128,7 @@ async function runRlmPricing(
       {
         product: { productId: sfProductId },
         quantity,
-        currencyIsoCode: 'USD',
+        currencyIsoCode: currency,
         ...(sellingModelId ? { sellingModelId } : {}),
       },
     ],
@@ -175,7 +190,7 @@ async function runRlmPricing(
   const netUnitPrice =
     firstWaterfallLine?.netUnitPrice ?? firstLineItem?.netUnitPrice ?? 0
   const currencyIsoCode =
-    firstWaterfallLine?.currencyIsoCode ?? firstLineItem?.currencyIsoCode ?? 'USD'
+    firstWaterfallLine?.currencyIsoCode ?? firstLineItem?.currencyIsoCode ?? currency
 
   const steps = mapRlmSteps(waterfallItems)
 
@@ -374,6 +389,7 @@ async function runSoqlFallback(
   apiVersion: string,
   sfProductId: string,
   quantity: number,
+  currency: string,
   sellingModelId?: string,
   sellingModelName?: string,
 ): Promise<
@@ -412,16 +428,21 @@ async function runSoqlFallback(
     }
   }
 
-  const standardEntry = data.records.find((r) => r.Pricebook2.IsStandard)
-  const customEntries = data.records.filter((r) => !r.Pricebook2.IsStandard)
+  // Multi-currency orgs hold one entry per currency; keep only the account's so the
+  // price and the waterfall steps are all expressed in a single currency.
+  const inCurrency = data.records.filter((r) => r.CurrencyIsoCode === currency)
+  const records = inCurrency.length ? inCurrency : data.records
 
-  const picked = pickPricebookEntry(data.records, sellingModelId, sellingModelName)
-  const finalEntry = picked ?? customEntries[0] ?? standardEntry ?? data.records[0]
+  const standardEntry = records.find((r) => r.Pricebook2.IsStandard)
+  const customEntries = records.filter((r) => !r.Pricebook2.IsStandard)
 
-  const useSellingModelWaterfall = picked != null || data.records.length === 1
+  const picked = pickPricebookEntry(records, sellingModelId, sellingModelName)
+  const finalEntry = picked ?? customEntries[0] ?? standardEntry ?? records[0]
+
+  const useSellingModelWaterfall = picked != null || records.length === 1
   const steps = useSellingModelWaterfall
-    ? buildSellingModelWaterfall(data.records, finalEntry, sellingModelName)
-    : buildLegacyWaterfall(data.records, finalEntry)
+    ? buildSellingModelWaterfall(records, finalEntry, sellingModelName)
+    : buildLegacyWaterfall(records, finalEntry)
 
   const netUnitPrice = finalEntry.UnitPrice
   return {
@@ -462,6 +483,15 @@ export function useSalesforcePricing(
     let cancelled = false
 
     async function runPricing() {
+      // Price in the active account's currency so the figures shown match the order
+      // that gets placed from this page.
+      const accountId = loadActiveAccountId()
+      const currencyCtx = accountId
+        ? await fetchCurrencyContext(apiVersion, accountId)
+        : SINGLE_CURRENCY_CONTEXT
+      if (cancelled) return
+      const currency = currencyCtx.accountCurrency ?? 'USD'
+
       // 0. If headless config is fully set up, try the standard action first
       let headlessAttemptRaw: unknown
       if (isComplete) {
@@ -469,6 +499,7 @@ export function useSalesforcePricing(
           product2Id: sfProductId,
           quantity,
           productSellingModelId: sellingModelId,
+          currencyIsoCode: currency,
           pricebookId: config.pricebookId || undefined,
           startDate: config.effectiveDate.trim() || undefined,
         })
@@ -484,7 +515,7 @@ export function useSalesforcePricing(
       }
 
       // 1. Try the RLM Pricing Business API
-      const rlm = await runRlmPricing(apiVersion, sfProductId, quantity, sellingModelId)
+      const rlm = await runRlmPricing(apiVersion, sfProductId, quantity, currency, sellingModelId)
       if (cancelled) return
 
       if (rlm.ok) {
@@ -498,6 +529,7 @@ export function useSalesforcePricing(
           apiVersion,
           sfProductId,
           quantity,
+          currency,
           sellingModelId,
           sellingModelName,
         )

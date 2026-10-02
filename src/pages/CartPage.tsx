@@ -222,6 +222,12 @@ export function CartPage() {
         </table>
       </div>
 
+      {state.warnings.map((warning) => (
+        <div key={warning} className={styles.warnCard} role="status">
+          {warning}
+        </div>
+      ))}
+
       {state.status === 'error' && (
         <div className={styles.errorCard} role="alert">
           {state.error}
