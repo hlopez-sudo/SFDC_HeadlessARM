@@ -3,7 +3,6 @@ import { Navigate, useParams } from 'react-router-dom'
 import { ProductImageGallery } from '../components/products/detail/ProductImageGallery'
 import { SalesforcePricingPanel } from '../components/products/detail/SalesforcePricingPanel'
 import { AppBreadcrumbs } from '../components/navigation/AppBreadcrumbs'
-import { modelDetailsBySlug } from '../data/product-models'
 import { useProductById } from '../hooks/useProductById'
 import { useSalesforcePricing } from '../hooks/useSalesforcePricing'
 import { useProductSellingModelOptions } from '../hooks/useProductSellingModelOptions'
@@ -42,9 +41,6 @@ export function ProductDetailPage() {
 
   const productResult = useProductById(productSlug)
   const catalogProduct = productResult.status === 'found' ? productResult.product : undefined
-
-  // Supplemental hardcoded data for the two original products
-  const detail = modelDetailsBySlug[productSlug]
 
   const sellingModels = useProductSellingModelOptions(catalogProduct?.sfProductId ?? '')
   const selectedSellingModelId = sellingModels.find((m) => m.name === sellingModel)?.id
@@ -116,15 +112,15 @@ export function ProductDetailPage() {
     if (pricing.status === 'ok') {
       return formatMoney(pricing.record.netUnitPrice, pricing.record.currencyIsoCode)
     }
-    return priceFormatter.format(detail?.unitPriceUsd ?? 0)
-  }, [pricing, detail])
+    return priceFormatter.format(0)
+  }, [pricing])
 
   const lineTotalDisplay = useMemo(() => {
     if (pricing.status === 'ok') {
       return formatMoney(pricing.record.subtotal, pricing.record.currencyIsoCode)
     }
-    return priceFormatter.format((detail?.unitPriceUsd ?? 0) * quantity)
-  }, [pricing, detail, quantity])
+    return priceFormatter.format(0)
+  }, [pricing])
 
   if (productResult.status === 'loading') {
     return <div className={styles.wrap}><p>Loading…</p></div>
@@ -158,31 +154,6 @@ export function ProductDetailPage() {
             )}
             {catalogProduct.description && (
               <p className={styles.summary}>{catalogProduct.description}</p>
-            )}
-
-            {detail?.highlights && detail.highlights.length > 0 && (
-              <>
-                <h2 className={styles.h2}>Highlights</h2>
-                <ul className={styles.list}>
-                  {detail.highlights.map((item) => (
-                    <li key={item}>{item}</li>
-                  ))}
-                </ul>
-              </>
-            )}
-
-            {detail?.specs && detail.specs.length > 0 && (
-              <>
-                <h2 className={styles.h2}>Specifications</h2>
-                <dl className={styles.specs}>
-                  {detail.specs.map((s) => (
-                    <div key={s.label} className={styles.specRow}>
-                      <dt>{s.label}</dt>
-                      <dd>{s.value}</dd>
-                    </div>
-                  ))}
-                </dl>
-              </>
             )}
 
             <section className={styles.configPanel} aria-labelledby="config-heading">
