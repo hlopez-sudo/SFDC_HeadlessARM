@@ -2,6 +2,13 @@ import { useEffect, useState } from 'react'
 import { useSalesforceConfig } from '../salesforce/SalesforceConfigContext'
 import { fetchCurrencyContext } from '../salesforce/accountCurrency'
 
+export type AssetActionRecord = {
+  id: string
+  actionDate: string | null
+  category: string | null
+  quantityChange: number | null
+}
+
 export type AssetRecord = {
   id: string
   name: string
@@ -28,6 +35,8 @@ export type AssetRecord = {
   /** From the most recent AssetActionSource. */
   currentUnitPrice: number | null
   isRamped: boolean
+  /** Oldest first. */
+  actions: AssetActionRecord[]
 }
 
 type State = {
@@ -74,7 +83,7 @@ export async function fetchAccountAssets(
   )
 
   const ids = assets.map((a) => `'${a.Id}'`).join(',')
-  const [sources, rampPeriods] = ids
+  const [sources, rampPeriods, actions] = ids
     ? await Promise.all([
         queryAll<SfActionSource>(
           apiVersion,
@@ -87,8 +96,14 @@ export async function fetchAccountAssets(
           apiVersion,
           `SELECT AssetId FROM AssetStatePeriod WHERE AssetId IN (${ids}) AND RampIdentifier != null`,
         ),
+        queryAll<SfAssetAction>(
+          apiVersion,
+          `SELECT Id, AssetId, ActionDate, toLabel(CategoryEnum), QuantityChange ` +
+            `FROM AssetAction WHERE AssetId IN (${ids}) ` +
+            `ORDER BY ActionDate ASC, CreatedDate ASC`,
+        ),
       ])
-    : [[], []]
+    : [[], [], []]
 
   const firstSource = new Map<string, SfActionSource>()
   const latestPrice = new Map<string, number>()
@@ -100,6 +115,18 @@ export async function fetchAccountAssets(
   }
 
   const ramped = new Set(rampPeriods.map((p) => p.AssetId))
+
+  const actionsByAsset = new Map<string, AssetActionRecord[]>()
+  for (const a of actions) {
+    const list = actionsByAsset.get(a.AssetId) ?? []
+    list.push({
+      id: a.Id,
+      actionDate: a.ActionDate ?? null,
+      category: a.CategoryEnum ?? null,
+      quantityChange: a.QuantityChange ?? null,
+    })
+    actionsByAsset.set(a.AssetId, list)
+  }
 
   return {
     data: assets.map((r) => {
@@ -127,6 +154,7 @@ export async function fetchAccountAssets(
         isDerivedPrice: Boolean(source?.PricebookEntry?.IsDerived),
         currentUnitPrice: latestPrice.get(r.Id) ?? null,
         isRamped: ramped.has(r.Id),
+        actions: actionsByAsset.get(r.Id) ?? [],
       }
     }),
     isMultiCurrency: currencyCtx.isMultiCurrency,
@@ -190,4 +218,13 @@ type SfActionSource = {
 
 type SfStatePeriod = {
   AssetId: string
+}
+
+type SfAssetAction = {
+  Id: string
+  AssetId: string
+  ActionDate: string | null
+  /** Picklist label, via toLabel(). */
+  CategoryEnum: string | null
+  QuantityChange: number | null
 }

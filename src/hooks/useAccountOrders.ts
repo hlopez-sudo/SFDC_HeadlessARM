@@ -9,6 +9,8 @@ export type OrderRecord = {
   currencyIsoCode: string
   effectiveDate: string | null
   endDate: string | null
+  /** Distinct products across the order's items. */
+  productNames: string[]
 }
 
 type State = { data: OrderRecord[]; loading: boolean; error: string | null }
@@ -29,7 +31,8 @@ export function useAccountOrders(accountId: string, reloadKey = 0): State {
 
     async function run() {
       const soql =
-        `SELECT Id, OrderNumber, Status, TotalAmount, CurrencyIsoCode, EffectiveDate, EndDate ` +
+        `SELECT Id, OrderNumber, Status, TotalAmount, CurrencyIsoCode, EffectiveDate, EndDate, ` +
+        `(SELECT Product2.Name FROM OrderItems) ` +
         `FROM Order WHERE AccountId = '${accountId}' ORDER BY CreatedDate DESC LIMIT 50`
       const res = await fetch(
         `/api/salesforce/services/data/v${apiVersion}/query?q=${encodeURIComponent(soql)}`,
@@ -51,6 +54,9 @@ export function useAccountOrders(accountId: string, reloadKey = 0): State {
             currencyIsoCode: r.CurrencyIsoCode ?? 'USD',
             effectiveDate: r.EffectiveDate ?? null,
             endDate: r.EndDate ?? null,
+            productNames: [
+              ...new Set((r.OrderItems?.records ?? []).flatMap((l) => l.Product2?.Name ?? [])),
+            ],
           })),
           loading: false,
           error: null,
@@ -78,4 +84,5 @@ type SfRecord = {
   CurrencyIsoCode: string | null
   EffectiveDate: string | null
   EndDate: string | null
+  OrderItems: { records: { Product2: { Name: string } | null }[] } | null
 }

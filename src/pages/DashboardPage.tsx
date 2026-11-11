@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { ChevronRight, FileText, Layers, Receipt, ShoppingBag } from 'lucide-react'
+import { ChevronRight, FileText, Layers, Receipt, Search, ShoppingBag, X } from 'lucide-react'
 import { useAccountQuotes, type QuoteRecord } from '../hooks/useAccountQuotes'
 import { useAccountOrders, type OrderRecord } from '../hooks/useAccountOrders'
 import { useAccountAssets, type AssetRecord } from '../hooks/useAccountAssets'
@@ -13,7 +13,7 @@ import {
   type AssetActionDef,
 } from '../salesforce/assetActions'
 import { AssetActionDrawer } from '../components/assets/AssetActionDrawer'
-import { formatDate, formatMoney } from '../lib/format'
+import { formatDate, formatMoney, formatSignedNumber } from '../lib/format'
 import styles from './DashboardPage.module.css'
 
 const ACTIVE_ACCOUNT_KEY = 'fc-active-account'
@@ -75,13 +75,66 @@ function ErrorRow({ cols, message }: { cols: number; message: string }) {
   )
 }
 
-function EmptyRow({ cols }: { cols: number }) {
+function EmptyRow({ cols, message = 'No records found.' }: { cols: number; message?: string }) {
   return (
     <tr>
       <td colSpan={cols} className={styles.emptyRow}>
-        No records found.
+        {message}
       </td>
     </tr>
+  )
+}
+
+function filterBySearch<T>(records: T[], query: string, fields: (r: T) => (string | null)[]): T[] {
+  const q = query.trim().toLowerCase()
+  if (!q) return records
+  return records.filter((r) => fields(r).some((v) => v?.toLowerCase().includes(q)))
+}
+
+function noMatchMessage(query: string): string {
+  return `No matches for "${query.trim()}".`
+}
+
+type SectionSearchProps = {
+  value: string
+  onChange: (value: string) => void
+  placeholder: string
+  matchCount: number
+  total: number
+}
+
+function SectionSearch({ value, onChange, placeholder, matchCount, total }: SectionSearchProps) {
+  return (
+    <div className={styles.searchBar}>
+      <div className={styles.searchField}>
+        <Search size={14} strokeWidth={2} className={styles.searchIcon} aria-hidden />
+        <input
+          type="search"
+          className={styles.searchInput}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          aria-label={placeholder}
+          autoComplete="off"
+          spellCheck={false}
+        />
+        {value && (
+          <button
+            type="button"
+            className={styles.searchClear}
+            onClick={() => onChange('')}
+            aria-label="Clear search"
+          >
+            <X size={14} strokeWidth={2} aria-hidden />
+          </button>
+        )}
+      </div>
+      {value.trim() && (
+        <span className={styles.searchCount}>
+          {matchCount} of {total}
+        </span>
+      )}
+    </div>
   )
 }
 
@@ -138,6 +191,8 @@ function CollapsibleSection({
 
 function QuotesCard({ accountId, reloadKey }: { accountId: string; reloadKey: number }) {
   const { data, loading, error } = useAccountQuotes(accountId, reloadKey)
+  const [query, setQuery] = useState('')
+  const visible = filterBySearch(data, query, (r) => [r.name, ...r.productNames])
 
   return (
     <CollapsibleSection
@@ -148,6 +203,13 @@ function QuotesCard({ accountId, reloadKey }: { accountId: string; reloadKey: nu
       error={Boolean(error)}
       defaultOpen={false}
     >
+      <SectionSearch
+        value={query}
+        onChange={setQuery}
+        placeholder="Search quote or product name"
+        matchCount={visible.length}
+        total={data.length}
+      />
       <div className={styles.tableWrap}>
         <table className={styles.table}>
           <thead>
@@ -162,7 +224,10 @@ function QuotesCard({ accountId, reloadKey }: { accountId: string; reloadKey: nu
             {loading && <SpinnerRow cols={4} />}
             {!loading && error && <ErrorRow cols={4} message={error} />}
             {!loading && !error && data.length === 0 && <EmptyRow cols={4} />}
-            {!loading && !error && data.map((r: QuoteRecord) => (
+            {!loading && !error && data.length > 0 && visible.length === 0 && (
+              <EmptyRow cols={4} message={noMatchMessage(query)} />
+            )}
+            {!loading && !error && visible.map((r: QuoteRecord) => (
               <tr key={r.id}>
                 <td className={`${styles.td} ${styles.primaryCell}`}>{r.name}</td>
                 <td className={styles.td}><StatusChip status={r.status} /></td>
@@ -179,6 +244,8 @@ function QuotesCard({ accountId, reloadKey }: { accountId: string; reloadKey: nu
 
 function OrdersCard({ accountId, reloadKey }: { accountId: string; reloadKey: number }) {
   const { data, loading, error } = useAccountOrders(accountId, reloadKey)
+  const [query, setQuery] = useState('')
+  const visible = filterBySearch(data, query, (r) => [r.orderNumber, ...r.productNames])
 
   return (
     <CollapsibleSection
@@ -189,6 +256,13 @@ function OrdersCard({ accountId, reloadKey }: { accountId: string; reloadKey: nu
       error={Boolean(error)}
       defaultOpen={false}
     >
+      <SectionSearch
+        value={query}
+        onChange={setQuery}
+        placeholder="Search order number or product name"
+        matchCount={visible.length}
+        total={data.length}
+      />
       <div className={styles.tableWrap}>
         <table className={styles.table}>
           <thead>
@@ -204,7 +278,10 @@ function OrdersCard({ accountId, reloadKey }: { accountId: string; reloadKey: nu
             {loading && <SpinnerRow cols={5} />}
             {!loading && error && <ErrorRow cols={5} message={error} />}
             {!loading && !error && data.length === 0 && <EmptyRow cols={5} />}
-            {!loading && !error && data.map((r: OrderRecord) => (
+            {!loading && !error && data.length > 0 && visible.length === 0 && (
+              <EmptyRow cols={5} message={noMatchMessage(query)} />
+            )}
+            {!loading && !error && visible.map((r: OrderRecord) => (
               <tr key={r.id}>
                 <td className={`${styles.td} ${styles.primaryCell}`}>{r.orderNumber}</td>
                 <td className={styles.td}><StatusChip status={r.status} /></td>
@@ -230,6 +307,8 @@ function AssetsCard({ accountId, reloadKey, onActionCompleted }: AssetsCardProps
   const { orgInfo } = useSalesforceConfig()
   const { data, isMultiCurrency, loading, error } = useAccountAssets(accountId, reloadKey)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
+  const [query, setQuery] = useState('')
   const [drawer, setDrawer] = useState<{ action: AssetActionDef; assets: AssetRecord[] } | null>(null)
   const selectAllRef = useRef<HTMLInputElement | null>(null)
 
@@ -249,8 +328,10 @@ function AssetsCard({ accountId, reloadKey, onActionCompleted }: AssetsCardProps
       ),
     [data, selected, orgInfo.apiVersion, isMultiCurrency],
   )
-  const allSelected = data.length > 0 && selectedCount === data.length
-  const someSelected = selectedCount > 0 && !allSelected
+  const visible = filterBySearch(data, query, (r) => [r.name, r.productName])
+  const visibleSelectedCount = visible.filter((r) => selectedIds.has(r.id)).length
+  const allSelected = visible.length > 0 && visibleSelectedCount === visible.length
+  const someSelected = visibleSelectedCount > 0 && !allSelected
 
   useEffect(() => {
     if (selectAllRef.current) {
@@ -267,12 +348,24 @@ function AssetsCard({ accountId, reloadKey, onActionCompleted }: AssetsCardProps
     })
   }
 
+  function toggleExpanded(id: string) {
+    setExpandedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
   function toggleSelectAll() {
-    if (allSelected) {
-      setSelectedIds(new Set())
-    } else {
-      setSelectedIds(new Set(data.map((r) => r.id)))
-    }
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      for (const r of visible) {
+        if (allSelected) next.delete(r.id)
+        else next.add(r.id)
+      }
+      return next
+    })
   }
 
   const hasSelection = selectedCount > 0
@@ -291,6 +384,13 @@ function AssetsCard({ accountId, reloadKey, onActionCompleted }: AssetsCardProps
       error={Boolean(error)}
       defaultOpen={false}
     >
+      <SectionSearch
+        value={query}
+        onChange={setQuery}
+        placeholder="Search asset or product name"
+        matchCount={visible.length}
+        total={data.length}
+      />
       <div className={styles.assetToolbar}>
         <div className={styles.selectionInfo}>
           {hasSelection ? (
@@ -355,9 +455,9 @@ function AssetsCard({ accountId, reloadKey, onActionCompleted }: AssetsCardProps
                   ref={selectAllRef}
                   type="checkbox"
                   className={styles.rowCheckbox}
-                  aria-label="Select all assets"
+                  aria-label={query.trim() ? 'Select all matching assets' : 'Select all assets'}
                   checked={allSelected}
-                  disabled={loading || Boolean(error) || data.length === 0}
+                  disabled={loading || Boolean(error) || visible.length === 0}
                   onChange={toggleSelectAll}
                 />
               </th>
@@ -374,42 +474,103 @@ function AssetsCard({ accountId, reloadKey, onActionCompleted }: AssetsCardProps
             {loading && <SpinnerRow cols={8} />}
             {!loading && error && <ErrorRow cols={8} message={error} />}
             {!loading && !error && data.length === 0 && <EmptyRow cols={8} />}
-            {!loading && !error && data.map((r: AssetRecord) => {
+            {!loading && !error && data.length > 0 && visible.length === 0 && (
+              <EmptyRow cols={8} message={noMatchMessage(query)} />
+            )}
+            {!loading && !error && visible.map((r: AssetRecord) => {
               const isSelected = selectedIds.has(r.id)
+              const isExpanded = expandedIds.has(r.id)
+              const actionCount = r.actions.length
               return (
-                <tr
-                  key={r.id}
-                  className={`${styles.selectableRow} ${isSelected ? styles.rowSelected : ''}`}
-                  onClick={() => toggleSelected(r.id)}
-                >
-                  <td
-                    className={`${styles.td} ${styles.selectCell}`}
-                    onClick={(e) => e.stopPropagation()}
+                <Fragment key={r.id}>
+                  <tr
+                    className={`${styles.selectableRow} ${isSelected ? styles.rowSelected : ''}`}
+                    onClick={() => toggleSelected(r.id)}
                   >
-                    <input
-                      type="checkbox"
-                      className={styles.rowCheckbox}
-                      aria-label={`Select ${r.name}`}
-                      checked={isSelected}
-                      onChange={() => toggleSelected(r.id)}
-                    />
-                  </td>
-                  <td className={`${styles.td} ${styles.primaryCell}`}>{r.name}</td>
-                  <td className={styles.td}>{r.productName ?? '—'}</td>
-                  <td className={styles.td}>
-                    {r.sellingModelType ? (
-                      <StatusChip
-                        status={`${sellingModelLabel(r.sellingModelType)}${r.usageModelType ? ' · Usage' : ''}`}
+                    <td
+                      className={`${styles.td} ${styles.selectCell}`}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <input
+                        type="checkbox"
+                        className={styles.rowCheckbox}
+                        aria-label={`Select ${r.name}`}
+                        checked={isSelected}
+                        onChange={() => toggleSelected(r.id)}
                       />
-                    ) : (
-                      '—'
-                    )}
-                  </td>
-                  <td className={styles.td}><StatusChip status={r.status} /></td>
-                  <td className={`${styles.td} ${styles.numCell}`}>{r.quantity ?? '—'}</td>
-                  <td className={styles.td}>{formatDate(r.startDate)}</td>
-                  <td className={styles.td}>{formatDate(r.endDate)}</td>
-                </tr>
+                    </td>
+                    <td className={`${styles.td} ${styles.primaryCell}`}>
+                      <span className={styles.nameCell}>
+                        <button
+                          type="button"
+                          className={styles.expandBtn}
+                          aria-expanded={isExpanded}
+                          aria-label={`${isExpanded ? 'Hide' : 'Show'} asset actions for ${r.name}`}
+                          title={
+                            actionCount === 0
+                              ? 'No asset actions'
+                              : `${isExpanded ? 'Hide' : 'Show'} ${actionCount} asset ${actionCount === 1 ? 'action' : 'actions'}`
+                          }
+                          disabled={actionCount === 0}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            toggleExpanded(r.id)
+                          }}
+                        >
+                          <ChevronRight
+                            size={14}
+                            strokeWidth={2}
+                            className={`${styles.chevron} ${isExpanded ? styles.chevronOpen : ''}`}
+                            aria-hidden
+                          />
+                        </button>
+                        {r.name}
+                      </span>
+                    </td>
+                    <td className={styles.td}>{r.productName ?? '—'}</td>
+                    <td className={styles.td}>
+                      {r.sellingModelType ? (
+                        <StatusChip
+                          status={`${sellingModelLabel(r.sellingModelType)}${r.usageModelType ? ' · Usage' : ''}`}
+                        />
+                      ) : (
+                        '—'
+                      )}
+                    </td>
+                    <td className={styles.td}><StatusChip status={r.status} /></td>
+                    <td className={`${styles.td} ${styles.numCell}`}>{r.quantity ?? '—'}</td>
+                    <td className={styles.td}>{formatDate(r.startDate)}</td>
+                    <td className={styles.td}>{formatDate(r.endDate)}</td>
+                  </tr>
+                  {isExpanded && (
+                    <tr className={styles.assetActionsRow}>
+                      <td colSpan={8} className={styles.assetActionsCell}>
+                        <div className={styles.assetActionsWrap}>
+                          <table className={styles.assetActionsTable}>
+                            <thead>
+                              <tr>
+                                <th className={styles.th}>Action Date</th>
+                                <th className={styles.th}>Business Category</th>
+                                <th className={styles.th}>Change in Quantity</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {r.actions.map((a) => (
+                                <tr key={a.id}>
+                                  <td className={styles.td}>{formatDate(a.actionDate)}</td>
+                                  <td className={styles.td}>{a.category ?? '—'}</td>
+                                  <td className={`${styles.td} ${styles.numCell}`}>
+                                    {formatSignedNumber(a.quantityChange)}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
               )
             })}
           </tbody>
@@ -421,6 +582,8 @@ function AssetsCard({ accountId, reloadKey, onActionCompleted }: AssetsCardProps
 
 function InvoicesCard({ accountId }: { accountId: string }) {
   const { data, loading, error } = useAccountInvoices(accountId)
+  const [query, setQuery] = useState('')
+  const visible = filterBySearch(data, query, (r) => [r.invoiceNumber, ...r.productNames])
 
   return (
     <CollapsibleSection
@@ -431,6 +594,13 @@ function InvoicesCard({ accountId }: { accountId: string }) {
       error={Boolean(error)}
       defaultOpen={false}
     >
+      <SectionSearch
+        value={query}
+        onChange={setQuery}
+        placeholder="Search invoice number or product name"
+        matchCount={visible.length}
+        total={data.length}
+      />
       <div className={styles.tableWrap}>
         <table className={styles.table}>
           <thead>
@@ -448,7 +618,10 @@ function InvoicesCard({ accountId }: { accountId: string }) {
             {loading && <SpinnerRow cols={7} />}
             {!loading && error && <ErrorRow cols={7} message={error} />}
             {!loading && !error && data.length === 0 && <EmptyRow cols={7} />}
-            {!loading && !error && data.map((r: InvoiceRecord) => (
+            {!loading && !error && data.length > 0 && visible.length === 0 && (
+              <EmptyRow cols={7} message={noMatchMessage(query)} />
+            )}
+            {!loading && !error && visible.map((r: InvoiceRecord) => (
               <tr key={r.id}>
                 <td className={`${styles.td} ${styles.primaryCell}`}>{r.invoiceNumber}</td>
                 <td className={styles.td}><StatusChip status={r.status} /></td>

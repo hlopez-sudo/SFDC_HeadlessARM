@@ -115,6 +115,78 @@
   background: var(--fc-surface);
 }
 
+/* Per-section search */
+.searchBar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--fc-border-light, #e8e8e8);
+}
+
+.searchField {
+  position: relative;
+  flex: 1;
+  max-width: 360px;
+}
+
+.searchIcon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--fc-text-muted);
+  pointer-events: none;
+}
+
+.searchInput {
+  width: 100%;
+  padding: 7px 30px 7px 32px;
+  border: 1px solid var(--fc-border);
+  border-radius: var(--fc-radius-sm);
+  background: var(--fc-page-bg);
+  color: var(--fc-text);
+  font-size: 13px;
+}
+
+.searchInput:focus {
+  outline: 2px solid var(--fc-accent, #0969da);
+  outline-offset: 1px;
+}
+
+.searchInput::-webkit-search-cancel-button {
+  display: none;
+}
+
+.searchClear {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: none;
+  color: var(--fc-text-muted);
+  cursor: pointer;
+}
+
+.searchClear:hover {
+  color: var(--fc-text);
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.searchCount {
+  font-size: 12px;
+  color: var(--fc-text-muted);
+  white-space: nowrap;
+}
+
 /* Assets & Subscriptions action toolbar */
 .assetToolbar {
   display: flex;
@@ -375,6 +447,68 @@
 .rowCheckbox:disabled {
   cursor: not-allowed;
   opacity: 0.5;
+}
+
+/* Asset Actions nested under each asset row */
+.nameCell {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.expandBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: none;
+  cursor: pointer;
+}
+
+.expandBtn:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.expandBtn:hover:not(:disabled) .chevron {
+  color: var(--fc-text);
+}
+
+.expandBtn:disabled {
+  cursor: default;
+  opacity: 0.35;
+}
+
+.assetActionsRow,
+.table tbody tr.assetActionsRow:hover {
+  background: var(--fc-page-bg);
+}
+
+.assetActionsCell {
+  /* Lines the panel up with the asset name, past the select column and chevron. */
+  padding: 8px 16px 12px 90px;
+  border-bottom: 1px solid var(--fc-border-light, #f0f0f0);
+}
+
+.assetActionsWrap {
+  border: 1px solid var(--fc-border);
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--fc-surface);
+}
+
+.assetActionsTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+}
+
+.assetActionsTable .th,
+.assetActionsTable .td {
+  padding: 6px 12px;
 }
 
 .emptyRow {

@@ -7,6 +7,8 @@ export type QuoteRecord = {
   status: string | null
   quoteAccountName: string | null
   totalPrice: number | null
+  /** Distinct products across the quote's line items. */
+  productNames: string[]
 }
 
 type State = { data: QuoteRecord[]; loading: boolean; error: string | null }
@@ -27,7 +29,8 @@ export function useAccountQuotes(accountId: string, reloadKey = 0): State {
 
     async function run() {
       const soql =
-        `SELECT Id, Name, Status, QuoteAccount.Name, TotalPrice ` +
+        `SELECT Id, Name, Status, QuoteAccount.Name, TotalPrice, ` +
+        `(SELECT Product2.Name FROM QuoteLineItems) ` +
         `FROM Quote WHERE QuoteAccountId = '${accountId}' ORDER BY CreatedDate DESC LIMIT 50`
       const res = await fetch(
         `/api/salesforce/services/data/v${apiVersion}/query?q=${encodeURIComponent(soql)}`,
@@ -47,6 +50,9 @@ export function useAccountQuotes(accountId: string, reloadKey = 0): State {
             status: r.Status ?? null,
             quoteAccountName: r.QuoteAccount?.Name ?? null,
             totalPrice: r.TotalPrice ?? null,
+            productNames: [
+              ...new Set((r.QuoteLineItems?.records ?? []).flatMap((l) => l.Product2?.Name ?? [])),
+            ],
           })),
           loading: false,
           error: null,
@@ -72,4 +78,5 @@ type SfRecord = {
   Status: string | null
   QuoteAccount: { Name: string } | null
   TotalPrice: number | null
+  QuoteLineItems: { records: { Product2: { Name: string } | null }[] } | null
 }

@@ -10,6 +10,8 @@ export type InvoiceRecord = {
   balance: number
   invoiceDate: string | null
   dueDate: string | null
+  /** Distinct products across the invoice's lines. */
+  productNames: string[]
 }
 
 type State = { data: InvoiceRecord[]; loading: boolean; error: string | null }
@@ -30,7 +32,8 @@ export function useAccountInvoices(accountId: string): State {
 
     async function run() {
       const soql =
-        `SELECT Id, InvoiceNumber, Status, TotalAmount, TotalAmountWithTax, Balance, InvoiceDate, DueDate ` +
+        `SELECT Id, InvoiceNumber, Status, TotalAmount, TotalAmountWithTax, Balance, InvoiceDate, DueDate, ` +
+        `(SELECT Product2.Name FROM InvoiceLines) ` +
         `FROM Invoice WHERE BillingAccountId = '${accountId}' ORDER BY InvoiceDate DESC LIMIT 50`
       const res = await fetch(
         `/api/salesforce/services/data/v${apiVersion}/query?q=${encodeURIComponent(soql)}`,
@@ -53,6 +56,9 @@ export function useAccountInvoices(accountId: string): State {
             balance: r.Balance ?? 0,
             invoiceDate: r.InvoiceDate ?? null,
             dueDate: r.DueDate ?? null,
+            productNames: [
+              ...new Set((r.InvoiceLines?.records ?? []).flatMap((l) => l.Product2?.Name ?? [])),
+            ],
           })),
           loading: false,
           error: null,
@@ -81,4 +87,5 @@ type SfRecord = {
   Balance: number | null
   InvoiceDate: string | null
   DueDate: string | null
+  InvoiceLines: { records: { Product2: { Name: string } | null }[] } | null
 }

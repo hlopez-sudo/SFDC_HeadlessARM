@@ -7,6 +7,11 @@ export function formatDate(iso: string | null): string {
   return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
 }
 
+export function formatSignedNumber(value: number | null): string {
+  if (value === null) return '—'
+  return value.toLocaleString('en-US', { signDisplay: 'exceptZero' })
+}
+
 export function formatMoney(amount: number, currency?: string): string {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
