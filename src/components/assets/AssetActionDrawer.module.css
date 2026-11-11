@@ -1,0 +1,112 @@
+/* Form pieces for the asset action drawer; the drawer chrome, banners and
+   collapsibles come from quote/TrialDrawer.module.css. */
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border: none;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--fc-text);
+}
+
+.input {
+  width: 100%;
+  padding: 7px 10px;
+  border: 1px solid var(--fc-border);
+  border-radius: var(--fc-radius-sm);
+  background: var(--fc-surface);
+  color: var(--fc-text);
+  font-size: 13px;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.input:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  background: var(--fc-page-bg);
+}
+
+.fieldHint {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--fc-text-muted);
+}
+
+.radioGroup {
+  display: flex;
+  gap: 16px;
+}
+
+.radioLabel {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--fc-text);
+  cursor: pointer;
+}
+
+.radioLabel:has(input:disabled) {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.fieldRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.swapBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--fc-border);
+  border-radius: var(--fc-radius-sm);
+}
+
+.swapHeading {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fc-text);
+}
+
+.tableWrap {
+  overflow-x: auto;
+}
+
+.qtyInput {
+  width: 72px;
+  padding: 4px 6px;
+  border: 1px solid var(--fc-border);
+  border-radius: var(--fc-radius-sm);
+  background: var(--fc-surface);
+  color: var(--fc-text);
+  font-size: 13px;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.qtyInput:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  background: var(--fc-page-bg);
+}

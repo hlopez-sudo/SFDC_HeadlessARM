@@ -17,19 +17,21 @@
 /* Cards */
 .card {
   border: 1px solid var(--fc-border);
-  border-radius: var(--fc-radius-sm);
-  padding: 16px 20px;
-  margin-bottom: 20px;
+  border-radius: var(--fc-radius-md);
+  margin-bottom: 16px;
   background: var(--fc-surface);
+  box-shadow: var(--fc-shadow-card);
+  overflow: hidden;
 }
 
 .accountCard {
+  padding: 16px 20px;
   background: color-mix(in srgb, var(--fc-accent, #0969da) 6%, var(--fc-surface));
 }
 
 .warnCard {
   border: 1px solid #fbbf24;
-  border-radius: var(--fc-radius-sm);
+  border-radius: var(--fc-radius-md);
   padding: 16px 20px;
   background: #fffbeb;
   margin-bottom: 20px;
@@ -45,35 +47,214 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
+}
+
+/* Collapsible header toggle */
+.cardHeaderToggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 20px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  transition: background-color 0.15s ease;
+}
+
+.cardHeaderToggle:hover {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.cardHeaderToggle:focus-visible {
+  outline: 2px solid var(--fc-accent);
+  outline-offset: -2px;
+}
+
+.cardHeaderOpen {
+  border-bottom: 1px solid var(--fc-border-light, #e8e8e8);
+}
+
+.cardHeaderLeft {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.cardHeaderIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--fc-accent, #00a1e0) 10%, transparent);
+  color: var(--fc-accent, #00a1e0);
+  flex-shrink: 0;
+}
+
+.chevron {
+  color: var(--fc-text-muted);
+  flex-shrink: 0;
+  transition: transform 0.18s ease, color 0.15s ease;
+}
+
+.cardHeaderToggle:hover .chevron {
+  color: var(--fc-text);
+}
+
+.chevronOpen {
+  transform: rotate(90deg);
+}
+
+.cardBody {
+  background: var(--fc-surface);
+}
+
+/* Assets & Subscriptions action toolbar */
+.assetToolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 12px 20px;
+  background: color-mix(in srgb, var(--fc-page-bg, #f5f5f5) 60%, var(--fc-surface));
+  border-bottom: 1px solid var(--fc-border-light, #e8e8e8);
+}
+
+.selectionInfo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 28px;
+}
+
+.selectionHint {
+  font-size: 12.5px;
+  color: var(--fc-text-muted);
+}
+
+.selectionBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--fc-accent, #00a1e0) 12%, var(--fc-surface));
+  border: 1px solid color-mix(in srgb, var(--fc-accent, #00a1e0) 30%, transparent);
+  color: var(--fc-accent, #00a1e0);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.clearSelectionBtn {
+  border: none;
+  background: transparent;
+  padding: 2px 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--fc-text-muted);
+  cursor: pointer;
+  border-radius: var(--fc-radius-sm);
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.clearSelectionBtn:hover {
+  color: var(--fc-text);
+  background: rgba(0, 0, 0, 0.05);
 }
 
 .assetActions {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
 .assetActionBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+  border-radius: var(--fc-radius-md);
+  padding: 6px 12px;
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease,
+    box-shadow 0.15s ease,
+    opacity 0.15s ease;
+  white-space: nowrap;
+}
+
+.assetActionBtn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* Carries the tooltip; disabled buttons don't receive hover in every browser. */
+.assetActionWrap {
+  display: inline-flex;
+}
+
+.assetActionWrap:has(.assetActionBtn:disabled) {
+  cursor: not-allowed;
+}
+
+.assetActionWrap .assetActionBtn:disabled {
+  pointer-events: none;
+}
+
+.btnPrimary {
+  border: 1px solid var(--fc-accent);
+  background: var(--fc-accent);
+  color: #ffffff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+.btnPrimary:hover:not(:disabled) {
+  background: var(--fc-accent-hover);
+  border-color: var(--fc-accent-hover);
+}
+
+.btnSecondary {
   border: 1px solid var(--fc-border);
   background: var(--fc-surface);
   color: var(--fc-text);
-  font-size: 12px;
-  font-weight: 500;
-  border-radius: var(--fc-radius-sm);
-  padding: 4px 10px;
-  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
 }
 
-.assetActionBtn:hover {
-  background: var(--fc-page-bg);
+.btnSecondary:hover:not(:disabled) {
+  border-color: var(--fc-accent);
+  color: var(--fc-accent);
+  background: color-mix(in srgb, var(--fc-accent, #00a1e0) 5%, var(--fc-surface));
+}
+
+.btnDangerOutline {
+  border: 1px solid var(--fc-border);
+  background: var(--fc-surface);
+  color: var(--fc-text-muted);
+}
+
+.btnDangerOutline:hover:not(:disabled) {
+  border-color: #ef4444;
+  color: #b91c1c;
+  background: #fef2f2;
 }
 
 .cardTitle {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.06em;
-  color: var(--fc-text-muted, #888);
+  color: var(--fc-text);
   margin: 0;
 }
 
@@ -81,14 +262,14 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 1px 7px;
-  border-radius: 10px;
+  padding: 1px 8px;
+  border-radius: 999px;
   background: var(--fc-page-bg, #f3f4f6);
   border: 1px solid var(--fc-border);
   font-size: 11px;
   font-weight: 600;
   color: var(--fc-text-muted);
-  min-width: 20px;
+  min-width: 22px;
 }
 
 .accountName {
@@ -120,17 +301,48 @@
   text-align: left;
   color: var(--fc-text-muted);
   font-weight: 600;
-  font-size: 12px;
-  padding: 6px 10px;
+  font-size: 11.5px;
+  letter-spacing: 0.02em;
+  padding: 10px 16px;
+  background: var(--fc-page-bg);
   border-bottom: 1px solid var(--fc-border);
   white-space: nowrap;
 }
 
 .td {
-  padding: 7px 10px;
+  padding: 10px 16px;
   border-bottom: 1px solid var(--fc-border-light, #f0f0f0);
-  vertical-align: top;
+  vertical-align: middle;
   color: var(--fc-text);
+}
+
+.table tbody tr:last-child .td {
+  border-bottom: none;
+}
+
+.table tbody tr:hover {
+  background: rgba(0, 0, 0, 0.015);
+}
+
+.selectableRow {
+  cursor: pointer;
+  transition: background-color 0.12s ease;
+}
+
+.rowSelected {
+  background: color-mix(in srgb, var(--fc-accent, #00a1e0) 7%, var(--fc-surface));
+}
+
+.table tbody tr.rowSelected:hover {
+  background: color-mix(in srgb, var(--fc-accent, #00a1e0) 10%, var(--fc-surface));
+}
+
+.primaryCell {
+  font-weight: 500;
+}
+
+.numCell {
+  font-variant-numeric: tabular-nums;
 }
 
 .td:last-child,
@@ -139,24 +351,35 @@
 }
 
 .selectCol {
-  width: 68px;
+  width: 48px;
   text-align: center;
+  padding-left: 16px;
+  padding-right: 8px;
 }
 
 .selectCell {
+  width: 48px;
   text-align: center;
+  padding-left: 16px;
+  padding-right: 8px;
 }
 
 .rowCheckbox {
-  width: 14px;
-  height: 14px;
+  width: 15px;
+  height: 15px;
   cursor: pointer;
   accent-color: var(--fc-accent, #0969da);
+  vertical-align: middle;
+}
+
+.rowCheckbox:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
 }
 
 .emptyRow {
   text-align: center;
-  padding: 20px 10px;
+  padding: 24px 16px;
   color: var(--fc-text-muted);
   font-style: italic;
   font-size: 13px;
@@ -164,7 +387,7 @@
 
 .errorRow {
   text-align: center;
-  padding: 12px 10px;
+  padding: 14px 16px;
   color: #b91c1c;
   font-size: 13px;
 }
@@ -215,6 +438,16 @@
   width: 16px;
   height: 16px;
   border: 2px solid var(--fc-border);
+  border-top-color: var(--fc-accent, #0969da);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+.headerSpinner {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border: 1.5px solid var(--fc-border);
   border-top-color: var(--fc-accent, #0969da);
   border-radius: 50%;
   animation: spin 0.7s linear infinite;

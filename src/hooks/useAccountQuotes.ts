@@ -11,7 +11,7 @@ export type QuoteRecord = {
 
 type State = { data: QuoteRecord[]; loading: boolean; error: string | null }
 
-export function useAccountQuotes(accountId: string): State {
+export function useAccountQuotes(accountId: string, reloadKey = 0): State {
   const { orgInfo } = useSalesforceConfig()
   const apiVersion = orgInfo.apiVersion || '62.0'
   const [state, setState] = useState<State>({ data: [], loading: false, error: null })
@@ -61,7 +61,7 @@ export function useAccountQuotes(accountId: string): State {
     })
 
     return () => { cancelled = true }
-  }, [accountId, apiVersion])
+  }, [accountId, apiVersion, reloadKey])
 
   return state
 }
