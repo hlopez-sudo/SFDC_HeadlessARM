@@ -14,7 +14,7 @@ import {
   XCircle,
   type LucideIcon,
 } from 'lucide-react'
-import type { AssetRecord } from '../hooks/useAccountAssets'
+import type { AssetBilling, AssetRecord } from '../hooks/useAccountAssets'
 import { extractPstErrorMessage } from './placeSalesTransactionError'
 
 export const OUTPUT_RECORD_TYPES = ['Quote', 'Order'] as const
@@ -406,9 +406,23 @@ export function validateAssetActionForm(
 
 // ── Requests ────────────────────────────────────────────────────────────────
 
-const LINE_RECORDS: Record<OutputRecordType, { type: string; startField: string }> = {
-  Quote: { type: 'QuoteLineItem', startField: 'StartDate' },
-  Order: { type: 'OrderItem', startField: 'ServiceDate' },
+const LINE_RECORDS: Record<OutputRecordType, { type: string; startField: string; billingFrequencyField: string }> = {
+  Quote: { type: 'QuoteLineItem', startField: 'StartDate', billingFrequencyField: 'BillingFrequency' },
+  Order: { type: 'OrderItem', startField: 'ServiceDate', billingFrequencyField: 'BillingFrequency2' },
+}
+
+/**
+ * Salesforce only defaults the incoming line's billing alignment for some
+ * products; without it the request fails ("Enter a start proration period").
+ */
+function lineBillingFields(billing: AssetBilling | null, billingFrequencyField: string): Record<string, unknown> {
+  if (!billing) return {}
+  return {
+    PeriodBoundary: billing.periodBoundary,
+    ...(billing.periodBoundaryDay != null ? { PeriodBoundaryDay: billing.periodBoundaryDay } : {}),
+    ...(billing.periodBoundaryStartMonth ? { PeriodBoundaryStartMonth: billing.periodBoundaryStartMonth } : {}),
+    ...(billing.billingFrequency ? { [billingFrequencyField]: billing.billingFrequency } : {}),
+  }
 }
 
 const PLACEHOLDER = '(choose a product)'
@@ -459,7 +473,7 @@ export function buildAssetActionRequests(
 
   const body: Record<string, unknown> = { ...shared }
   if (action.family === 'swap') {
-    const { type, startField } = LINE_RECORDS[form.outputRecordType]
+    const { type, startField, billingFrequencyField } = LINE_RECORDS[form.outputRecordType]
     const lineStart = form.effectiveDate || dateAtBoundary(now, offset)
     body.swapGroups = {
       groups: assets.map((asset, i) => {
@@ -482,6 +496,7 @@ export function buildAssetActionRequests(
                   [startField]: lineStart,
                   // Term lines need an end date for pricing; co-term with the outgoing asset.
                   ...(asset.endDate ? { EndDate: dateAtBoundary(new Date(asset.endDate), offset) } : {}),
+                  ...lineBillingFields(asset.billing, billingFrequencyField),
                 },
               },
             ],
@@ -500,7 +515,7 @@ export const TARGET_LOOKUP = {
   sObject: 'PricebookEntry',
   queryFields: ['Id', 'Product2Id', 'Product2.Name', 'ProductSellingModel.Name', 'UnitPrice'],
   searchFields: ['Product2.Name'],
-  valueField: 'Id',
+  valueField: 'Product2.Name',
   displayField: 'Product2.Name',
   subLabelField: 'ProductSellingModel.Name',
   orderBy: 'UnitPrice ASC',

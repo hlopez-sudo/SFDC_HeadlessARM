@@ -9,6 +9,13 @@ export type AssetActionRecord = {
   quantityChange: number | null
 }
 
+export type AssetBilling = {
+  periodBoundary: string
+  periodBoundaryDay: number | null
+  periodBoundaryStartMonth: string | null
+  billingFrequency: string | null
+}
+
 export type AssetRecord = {
   id: string
   name: string
@@ -34,6 +41,8 @@ export type AssetRecord = {
   isDerivedPrice: boolean
   /** From the most recent AssetActionSource. */
   currentUnitPrice: number | null
+  /** From the most recent order line that changed the asset. */
+  billing: AssetBilling | null
   isRamped: boolean
   /** Oldest first. */
   actions: AssetActionRecord[]
@@ -88,7 +97,9 @@ export async function fetchAccountAssets(
         queryAll<SfActionSource>(
           apiVersion,
           `SELECT AssetAction.AssetId, ProductSellingModel.Name, ProductSellingModel.SellingModelType, ` +
-            `ProductSellingModel.PricingTermUnit, PricebookEntry.Pricebook2Id, PricebookEntry.IsDerived, UnitPrice ` +
+            `ProductSellingModel.PricingTermUnit, PricebookEntry.Pricebook2Id, PricebookEntry.IsDerived, UnitPrice, ` +
+            `TYPEOF ReferenceEntityItem WHEN OrderItem THEN ` +
+            `PeriodBoundary, PeriodBoundaryDay, PeriodBoundaryStartMonth, BillingFrequency2 END ` +
             `FROM AssetActionSource WHERE AssetAction.AssetId IN (${ids}) ` +
             `ORDER BY TransactionDate ASC, CreatedDate ASC`,
         ),
@@ -107,11 +118,21 @@ export async function fetchAccountAssets(
 
   const firstSource = new Map<string, SfActionSource>()
   const latestPrice = new Map<string, number>()
+  const latestBilling = new Map<string, AssetBilling>()
   for (const s of sources) {
     const assetId = s.AssetAction?.AssetId
     if (!assetId) continue
     if (!firstSource.has(assetId)) firstSource.set(assetId, s)
     if (s.UnitPrice != null) latestPrice.set(assetId, s.UnitPrice)
+    const line = s.ReferenceEntityItem
+    if (line?.PeriodBoundary) {
+      latestBilling.set(assetId, {
+        periodBoundary: line.PeriodBoundary,
+        periodBoundaryDay: line.PeriodBoundaryDay ?? null,
+        periodBoundaryStartMonth: line.PeriodBoundaryStartMonth ?? null,
+        billingFrequency: line.BillingFrequency2 ?? null,
+      })
+    }
   }
 
   const ramped = new Set(rampPeriods.map((p) => p.AssetId))
@@ -153,6 +174,7 @@ export async function fetchAccountAssets(
         pricebookId: source?.PricebookEntry?.Pricebook2Id ?? null,
         isDerivedPrice: Boolean(source?.PricebookEntry?.IsDerived),
         currentUnitPrice: latestPrice.get(r.Id) ?? null,
+        billing: latestBilling.get(r.Id) ?? null,
         isRamped: ramped.has(r.Id),
         actions: actionsByAsset.get(r.Id) ?? [],
       }
@@ -214,6 +236,13 @@ type SfActionSource = {
   ProductSellingModel: { Name: string; SellingModelType: string; PricingTermUnit: string | null } | null
   PricebookEntry: { Pricebook2Id: string; IsDerived: boolean | null } | null
   UnitPrice: number | null
+  /** Billing fields are only present when the reference is an OrderItem. */
+  ReferenceEntityItem: {
+    PeriodBoundary?: string | null
+    PeriodBoundaryDay?: number | null
+    PeriodBoundaryStartMonth?: string | null
+    BillingFrequency2?: string | null
+  } | null
 }
 
 type SfStatePeriod = {

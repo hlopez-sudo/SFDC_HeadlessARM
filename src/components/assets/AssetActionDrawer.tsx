@@ -294,7 +294,7 @@ export function AssetActionDrawer({ action, assets, isMultiCurrency, onClose, on
                     <div className={formStyles.field}>
                       <span className={formStyles.label}>Replace with</span>
                       <SalesforceLookupInput
-                        value={line?.target?.pricebookEntryId ?? ''}
+                        value={line?.target?.productName ?? ''}
                         onChange={() => undefined}
                         onSelect={(record) => updateSwapLine(asset.id, { target: swapTargetFromRecord(record) })}
                         sObject={TARGET_LOOKUP.sObject}
